@@ -1,5 +1,6 @@
 // Print server: Shopify-authenticated HTTP API + Zebra Weblink endpoint.
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
@@ -10,6 +11,7 @@ import { config, checkConfig } from './config.js';
 import { verifySessionToken, AuthError } from './auth.js';
 import { PrinterHub, PrinterError } from './weblink.js';
 import { buildLabelJob } from './zpl.js';
+import { buildRepairLabel, validateRepairLabel } from './repair-label.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const homeHtml = fs.readFileSync(path.join(here, 'home.html'), 'utf8');
@@ -29,6 +31,15 @@ async function handle(req, res) {
   if (url.pathname === '/health') return json(res, 200, { ok: true });
 
   if (req.method === 'GET' && url.pathname === '/') return home(req, res, url);
+
+  // Repair Desk -> repair intake label. Own auth (shared secret), not Shopify's.
+  if (url.pathname === '/api/repair-label') {
+    if (!config.repairDeskToken) return json(res, 404, { error: 'Not found' });
+    if (req.method !== 'POST') return json(res, 405, { error: 'Use POST' });
+    if (!repairDeskAuthorized(req.headers.authorization)) return json(res, 401, { error: 'Not authorized' });
+    const body = await readJson(req);
+    return printRepairLabel(res, body);
+  }
 
   if (url.pathname.startsWith('/api/')) {
     let session;
@@ -93,6 +104,63 @@ async function printItems(res, session, body) {
     if (err instanceof PrinterError) return json(res, 503, { error: err.message, code: err.code });
     throw err;
   }
+}
+
+// ------------------------------------------------------- repair labels
+
+const REPAIR_SIZE = { widthIn: config.label.widthIn, heightIn: config.label.heightIn, marginIn: config.label.marginIn };
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const IDEMPOTENCY_MAX = 1000;
+const repairJobs = new Map(); // idempotencyKey -> { at, promise }
+
+function repairDeskAuthorized(header) {
+  const m = /^Bearer\s+(.+)$/i.exec(header || '');
+  if (!m) return false;
+  const given = crypto.createHash('sha256').update(m[1]).digest();
+  const want = crypto.createHash('sha256').update(config.repairDeskToken).digest();
+  return crypto.timingSafeEqual(given, want);
+}
+
+/**
+ * Print one repair label. The same idempotencyKey within 24 hours returns the
+ * first result and never prints again, even if the first attempt is still running.
+ * A failed attempt is forgotten so the Repair Desk can retry with the same key.
+ */
+async function printRepairLabel(res, body) {
+  const key = String(body?.idempotencyKey ?? '');
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(key)) return json(res, 400, { error: 'idempotencyKey must be 16–64 letters, digits, _ or -' });
+  const label = validateRepairLabel(body);
+  if (typeof label === 'string') return json(res, 400, { error: label });
+
+  pruneRepairJobs();
+  const seen = repairJobs.get(key);
+  if (seen) {
+    const result = await seen.promise.catch(() => null);
+    if (result) return json(res, 200, { ...result, duplicate: true });
+  }
+
+  const printer = hub.find(body.printer);
+  if (!printer) return json(res, 404, { error: 'No printer with that name is configured.' });
+
+  const promise = hub
+    .print(printer, (dpi) => buildRepairLabel(label, dpi, REPAIR_SIZE, body.copies))
+    .then((r) => ({ ok: true, printer: printer.name, jobNumber: label.jobNumber, warning: r.paused ? 'The printer is paused — press the pause button to start printing.' : undefined }));
+  repairJobs.set(key, { at: Date.now(), promise });
+  try {
+    const result = await promise;
+    console.log(`[repair-label] ${label.jobNumber} -> ${printer.name}`);
+    return json(res, 200, result);
+  } catch (err) {
+    repairJobs.delete(key);
+    if (err instanceof PrinterError) return json(res, 503, { error: err.message, code: err.code });
+    throw err;
+  }
+}
+
+function pruneRepairJobs() {
+  const cutoff = Date.now() - IDEMPOTENCY_TTL_MS;
+  for (const [k, v] of repairJobs) if (v.at < cutoff) repairJobs.delete(k);
+  while (repairJobs.size > IDEMPOTENCY_MAX) repairJobs.delete(repairJobs.keys().next().value);
 }
 
 function validateItems(items) {

@@ -13,6 +13,8 @@ process.env.SHOPIFY_API_KEY = API_KEY;
 process.env.SHOPIFY_API_SECRET = API_SECRET;
 process.env.ALLOWED_SHOPS = SHOP;
 process.env.PRINTERS = `Front counter=${TOKEN}`;
+const REPAIR_DESK_TOKEN = 'repair-desk-test-secret-0123456789';
+process.env.REPAIR_DESK_TOKEN = REPAIR_DESK_TOKEN;
 
 const base = `http://127.0.0.1:${process.env.PORT}`;
 let server, printer;
@@ -153,4 +155,87 @@ test('prints butterfly tags: two wings, no logo, label type listed', async () =>
   assert.match(zpl, /\^BY1,3,\d+\^BCN,\d+,N,N,N,N\^FH\^FDRING-7\^FS/); // barcode fits at 203 dpi
   assert.match(zpl, /\^PQ2,0,1,Y/);
   assert.equal((await api('/api/print', { labelType: 'nope', items: [{ sku: 'X', price: 1, quantity: 1 }] })).status, 400);
+});
+
+// ------------------------------------------------------- repair labels
+
+const repairLabel = (body, token = REPAIR_DESK_TOKEN) =>
+  fetch(base + '/api/repair-label', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+const ticketLabel = (over = {}) => ({
+  idempotencyKey: crypto.randomBytes(12).toString('base64url'),
+  label: {
+    jobNumber: 'MOKU-0041',
+    customerName: 'Brendan M.',
+    board: "9'0 Fish Stix",
+    received: 'Oct 17',
+    phoneLast4: '+1 516 743 2459',
+    repair: 'New center longboard fin box only',
+    url: 'https://repair-desk-test.fly.dev/t/MOKU-0041',
+    ...over,
+  },
+});
+
+test('repair label: refuses a missing or wrong Repair Desk secret, and Shopify tokens', async () => {
+  assert.equal((await fetch(base + '/api/repair-label', { method: 'POST', body: '{}' })).status, 401);
+  assert.equal((await repairLabel(ticketLabel(), 'wrong-secret')).status, 401);
+  assert.equal((await repairLabel(ticketLabel(), sessionToken())).status, 401);
+});
+
+test('repair label: validates the fields', async () => {
+  assert.equal((await repairLabel({ ...ticketLabel(), idempotencyKey: 'short' })).status, 400);
+  assert.equal((await repairLabel(ticketLabel({ jobNumber: 'not a job' }))).status, 400);
+  assert.equal((await repairLabel(ticketLabel({ url: 'http://insecure.example/t/1' }))).status, 400);
+  assert.equal((await repairLabel(ticketLabel({ url: 'https://x.dev/t/^XA' }))).status, 400);
+  assert.equal((await repairLabel(ticketLabel({ customerName: ' ' }))).status, 400);
+});
+
+test('repair label: QR code, job number, last four digits only', async () => {
+  const before = printer.received.length;
+  const r = await repairLabel(ticketLabel());
+  const data = await r.json();
+  assert.equal(r.status, 200, JSON.stringify(data));
+  assert.equal(data.jobNumber, 'MOKU-0041');
+  await until(() => printer.received.length > before);
+  const zpl = printer.received.slice(before).join('');
+  assert.deepEqual(printer.violations, []);
+  assert.match(zpl, /\^PW406\^LL203/); // label size comes from the same LABEL_* settings as price labels
+  assert.match(zpl, /\^BQN,2,4\^FDMA,https:\/\/repair-desk-test\.fly\.dev\/t\/MOKU-0041\^FS/);
+  assert.match(zpl, /MOKU-0041/);
+  assert.match(zpl, /Brendan M\./);
+  assert.match(zpl, /••2459/);
+  assert.doesNotMatch(zpl, /516|743/); // never the full phone number
+  assert.match(zpl, /\^PQ1,0,1,Y/);
+  assert.doesNotMatch(zpl, /~DG/); // no logo download
+});
+
+test('repair label: the same request twice prints once, even when sent at the same moment', async () => {
+  const body = ticketLabel({ jobNumber: 'MOKU-0042', url: 'https://repair-desk-test.fly.dev/t/MOKU-0042' });
+  const before = printer.received.length;
+  const [a, b] = await Promise.all([repairLabel(body), repairLabel(body)]);
+  const c = await repairLabel(body);
+  const results = [await a.json(), await b.json(), await c.json()];
+  assert.deepEqual(results.map((x) => x.ok), [true, true, true]);
+  assert.equal(results.filter((x) => x.duplicate).length, 2);
+  await wait(150);
+  const printed = printer.received.slice(before).join('');
+  assert.equal((printed.match(/MOKU-0042/g) || []).length, 1);
+});
+
+test('repair label: a failed print can be retried with the same key', async () => {
+  const body = ticketLabel({ jobNumber: 'MOKU-0043', url: 'https://repair-desk-test.fly.dev/t/MOKU-0043' });
+  printer.alert('HEAD OPEN', 'SET');
+  await until(async () => (await (await api('/api/printers')).json()).printers[0].problems.includes('HEAD OPEN'));
+  const fail = await repairLabel(body);
+  assert.equal(fail.status, 503);
+  assert.match((await fail.json()).error, /head open/);
+  printer.alert('HEAD OPEN', 'CLEAR');
+  await until(async () => (await (await api('/api/printers')).json()).printers[0].problems.length === 0);
+  const ok = await repairLabel(body);
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).duplicate, undefined);
 });

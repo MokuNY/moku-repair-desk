@@ -104,6 +104,14 @@ DPI (203 or 300) is read from the printer automatically. You can add more printe
 
 **Labels print shifted or skip.** Recalibrate (step 5) and confirm the label size settings match the roll.
 
+## Repair Desk labels (`/api/repair-label`)
+The Repair Desk prints a QR intake label for each repair through `POST /api/repair-label`. The label has the job number, the customer's first name and last initial, the board, the intake date, the last 4 digits of the phone, and a QR code that opens the ticket. It uses the same printer and roll as price labels.
+
+* **Off by default.** The route exists only when the `REPAIR_DESK_TOKEN` secret is set. Without it the server behaves exactly as before.
+* **Auth:** `Authorization: Bearer <REPAIR_DESK_TOKEN>`, separate from Shopify tokens.
+* **Prints once:** each request carries an `idempotencyKey`. The same key within 24 hours returns the first result without printing again. A failed print is forgotten, so it can be retried with the same key.
+* The Repair Desk sends plain fields (job number, name, board…); the layout and ZPL are built here, so no raw printer commands cross between the services.
+
 ## Security notes
 * Every API call needs a valid Shopify ID token for your app; `ALLOWED_SHOPS` limits it to your store.
 * A printer's token is its password. Anyone holding it could connect a device and receive label data (SKUs and prices only). To rotate it, change `PRINTERS` and re-run step 4.

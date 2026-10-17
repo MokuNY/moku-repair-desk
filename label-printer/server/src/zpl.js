@@ -274,7 +274,7 @@ export function layout(dpi, s) {
 
 // ---------------------------------------------------------------------- text
 
-function textField(x, y, fontH, width, text, justify) {
+export function textField(x, y, fontH, width, text, justify) {
   const fitted = truncate(text, fontH, width);
   return `^FO${x},${y}^A0N,${fontH},${fontH}^FB${width},1,0,${justify}^FH^FD${escapeZpl(fitted)}^FS`;
 }

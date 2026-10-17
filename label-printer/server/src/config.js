@@ -38,6 +38,9 @@ export const config = {
   printers: parsePrinters(env.PRINTERS),
   defaultDpi: num(env.PRINTER_DPI, 203),
   maxLabelsPerJob: num(env.MAX_LABELS_PER_JOB, 1000),
+  // Shared secret the Repair Desk uses to request repair labels. Empty = the
+  // /api/repair-label route is switched off (it is, until approval point A4).
+  repairDeskToken: env.REPAIR_DESK_TOKEN || '',
   tls: env.TLS_CERT_FILE && env.TLS_KEY_FILE ? { cert: env.TLS_CERT_FILE, key: env.TLS_KEY_FILE } : null,
   label: {
     widthIn: num(env.LABEL_WIDTH_IN, 2),
