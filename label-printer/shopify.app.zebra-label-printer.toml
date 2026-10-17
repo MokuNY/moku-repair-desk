@@ -1,0 +1,19 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "78b7b64201ca0d5063b64ca2f4ca438b"
+application_url = "https://moku-labels-b228fd.fly.dev"
+embedded = true
+name = "Zebra Label Printer"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products"
+
+[auth]
+redirect_urls = [ "https://moku-labels-b228fd.fly.dev/auth/callback" ]
+
+[webhooks]
+api_version = "2027-01"
+
+[build]
+automatically_update_urls_on_dev = true

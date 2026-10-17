@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="shopify-api-key" content="%API_KEY%" />
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  <title>Label printer</title>
+  <style>
+    :root { --bg:#f1f1f1; --card:#fff; --ink:#303030; --muted:#616161; --line:#e3e3e3; --ok:#0c5132; --okbg:#cdfee1; --bad:#8e1f0b; --badbg:#fedad9; --warnbg:#fff1c2; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:16px; background:var(--bg); color:var(--ink); font:14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; display:grid; gap:16px; }
+    .card { background:var(--card); border-radius:12px; padding:16px; box-shadow:0 1px 0 rgba(0,0,0,.07); }
+    h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 12px; }
+    p { margin:0 0 8px; color:var(--muted); }
+    .printer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
+    .printer:first-of-type { border-top:0; }
+    .name { font-weight:600; } .meta { color:var(--muted); font-size:13px; }
+    .badge { display:inline-block; border-radius:8px; padding:2px 8px; font-size:12px; font-weight:600; }
+    .on { background:var(--okbg); color:var(--ok); } .off { background:var(--badbg); color:var(--bad); } .warn { background:var(--warnbg); color:#5e4200; }
+    button { font:inherit; font-weight:600; border:0; border-radius:8px; padding:8px 14px; background:#303030; color:#fff; cursor:pointer; }
+    button:disabled { opacity:.4; cursor:default; }
+    code { background:#f6f6f6; border-radius:4px; padding:1px 5px; font-size:12px; word-break:break-all; }
+    ol { margin:0; padding-left:20px; color:var(--muted); } li { margin:4px 0; }
+    #msg { min-height:20px; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <h1>Zebra label printing</h1>
+    <p>Print labels from any product: open the product, tap <b>More actions → Print labels</b>. For several products, select them in the product list and choose <b>Print labels</b> from the bulk actions.</p>
+  </section>
+
+  <section class="card">
+    <h2>Printers</h2>
+    <div id="types" style="margin-bottom:8px"></div>
+    <div id="printers"><p>Checking…</p></div>
+    <p id="msg"></p>
+  </section>
+
+  <section class="card">
+    <h2>Connecting a printer</h2>
+    <ol>
+      <li>Put the printer on Wi-Fi with the Zebra Printer Setup Utility app.</li>
+      <li>Set its Weblink location to <code>%WEBLINK_BASE%&lt;printer token&gt;</code> (the token is in the server's <code>PRINTERS</code> setting).</li>
+      <li>Restart the printer. It shows up here as connected within a minute.</li>
+    </ol>
+  </section>
+</main>
+<script>
+  const box = document.getElementById('printers');
+  const msg = document.getElementById('msg');
+
+  async function load() {
+    try {
+      const r = await fetch('/api/printers');
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.statusText);
+      render(data);
+    } catch (e) {
+      box.innerHTML = '';
+      msg.textContent = 'Could not reach the print server: ' + e.message;
+    }
+  }
+
+  let labelType = 'standard';
+  function renderTypes(types) {
+    const el = document.getElementById('types');
+    if (!types || types.length < 2 || el.dataset.done) return;
+    el.dataset.done = '1';
+    const sel = document.createElement('select');
+    sel.id = 'label-type';
+    sel.style.cssText = 'font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line)';
+    for (const t of types) { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; sel.appendChild(o); }
+    sel.onchange = () => (labelType = sel.value);
+    const lab = document.createElement('label');
+    lab.textContent = 'Test print on: ';
+    lab.appendChild(sel);
+    el.appendChild(lab);
+  }
+
+  function render({ printers, label }) {
+    renderTypes(label.types);
+    box.innerHTML = '';
+    if (!printers.length) { box.innerHTML = '<p>No printers configured on the server.</p>'; return; }
+    for (const p of printers) {
+      const row = document.createElement('div');
+      row.className = 'printer';
+      const status = !p.online ? '<span class="badge off">Offline</span>'
+        : p.problems.length ? `<span class="badge warn">${p.problems.join(', ').toLowerCase()}</span>`
+        : '<span class="badge on">Connected</span>';
+      const meta = [p.serial && 'Serial ' + p.serial, p.dpi && p.dpi + ' dpi', label.widthIn + '" × ' + label.heightIn + '" labels', label.hasLogo ? 'logo on' : 'no logo file']
+        .filter(Boolean).join(' · ');
+      row.innerHTML = `<div><div class="name"></div><div class="meta">${meta}</div><div>${status}</div></div>`;
+      row.querySelector('.name').textContent = p.name;
+      const btn = document.createElement('button');
+      btn.textContent = 'Test print';
+      btn.disabled = !p.online;
+      btn.onclick = () => testPrint(p.name, btn);
+      row.appendChild(btn);
+      box.appendChild(row);
+    }
+  }
+
+  async function testPrint(name, btn) {
+    btn.disabled = true;
+    msg.textContent = 'Sending…';
+    try {
+      const r = await fetch('/api/test-print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ printer: name, labelType }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      msg.textContent = data.warning || 'Test label sent to ' + name + '.';
+      window.shopify?.toast?.show('Test label sent');
+    } catch (e) {
+      msg.textContent = e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  load();
+  setInterval(load, 15000);
+</script>
+</body>
+</html>

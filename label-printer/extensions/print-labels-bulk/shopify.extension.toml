@@ -1,0 +1,12 @@
+api_version = "2026-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Print labels"
+handle = "print-labels-bulk"
+uid = "763128a2-9b64-1eb2-b458-bf0eafd998919a87ada6"
+description = "Print Zebra price labels for the selected products."
+
+[[extensions.targeting]]
+target = "admin.product-index.selection-action.render"
+module = "./src/BulkAction.jsx"

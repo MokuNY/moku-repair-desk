@@ -1,0 +1,5 @@
+name = "print-server"
+roles = ["frontend", "backend"]
+
+[commands]
+dev = "npm run dev"

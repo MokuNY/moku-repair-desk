@@ -1,0 +1,12 @@
+api_version = "2026-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Print labels"
+handle = "print-labels-variant"
+uid = "4e282914-d4c4-aee3-2b16-5a263671d2d647aea7f1"
+description = "Print Zebra price labels for this variant."
+
+[[extensions.targeting]]
+target = "admin.product-variant-details.action.render"
+module = "./src/VariantAction.jsx"

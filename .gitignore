@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.shopify/
+.env
+.env.*
+!.env.example
+.setup-state
+weblink-*.txt
+diag.txt
+*.sqlite
+*.sqlite-*
+.DS_Store

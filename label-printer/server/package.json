@@ -1,0 +1,16 @@
+{
+  "name": "zebra-label-print-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shopify-authenticated print server that drives Zebra Link-OS printers over Weblink.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "test": "node --test test/*.test.js"
+  }
+}

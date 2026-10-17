@@ -1,0 +1,19 @@
+{
+  "name": "zebra-label-app",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "workspaces": [
+    "extensions/*",
+    "server"
+  ],
+  "scripts": {
+    "dev": "shopify app dev",
+    "deploy": "shopify app deploy",
+    "test": "npm --workspace server test",
+    "printer-config": "node scripts/printer-config.js"
+  },
+  "devDependencies": {
+    "@shopify/cli": "latest"
+  }
+}
