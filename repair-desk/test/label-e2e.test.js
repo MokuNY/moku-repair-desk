@@ -79,7 +79,7 @@ test('check in a board -> QR label prints on the ZD411, once', async () => {
   assert.match(zpl, /\^PW447\^LL254/); // 2.2" x 1.25" at 203 dpi
   assert.match(zpl, /\^BQN,2,4\^FDMA,https:\/\/repair-desk-test\.fly\.dev\/t\/MOKU-0041\^FS/);
   assert.match(zpl, /Russell C\./);
-  assert.match(zpl, /••3139/);
+  assert.match(zpl, /ph \.\.\.3139/);
   assert.match(zpl, /11'1 Chopwood/);
 
   // Wrong secret is refused end to end.

@@ -4,7 +4,7 @@
 //   │ ▓▓▓▓▓▓▓  MOKU-0041                     │
 //   │ ▓ QR  ▓  Brendan M.                    │
 //   │ ▓▓▓▓▓▓▓  9'0 Fish Stix                 │
-//   │          In Oct 17 · ••2459            │
+//   │          In Oct 17 · ph ...2459        │
 //   │ New center longboard fin box only      │
 //   └────────────────────────────────────────┘
 //
@@ -38,7 +38,7 @@ export function buildRepairLabel(label, dpi, size, copies = 1) {
     textField(x0, m + f(2), f(44), colW, label.jobNumber, 'L'),
     textField(x0, m + f(54), f(28), colW, label.customerName, 'L'),
     textField(x0, m + f(88), f(24), colW, label.board, 'L'),
-    textField(x0, m + f(118), f(22), colW, `In ${label.received}${label.phoneLast4 ? ` · ••${label.phoneLast4}` : ''}`, 'L'),
+    textField(x0, m + f(118), f(22), colW, `In ${label.received}${label.phoneLast4 ? ` · ph ...${label.phoneLast4}` : ''}`, 'L'),
   ];
   if (label.repair) lines.push(textField(m, H - m - f(26), f(24), W - 2 * m, label.repair, 'L'));
 

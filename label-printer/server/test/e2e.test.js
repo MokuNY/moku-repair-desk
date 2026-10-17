@@ -207,7 +207,7 @@ test('repair label: QR code, job number, last four digits only', async () => {
   assert.match(zpl, /\^BQN,2,4\^FDMA,https:\/\/repair-desk-test\.fly\.dev\/t\/MOKU-0041\^FS/);
   assert.match(zpl, /MOKU-0041/);
   assert.match(zpl, /Brendan M\./);
-  assert.match(zpl, /••2459/);
+  assert.match(zpl, /In Oct 17 · ph \.\.\.2459/); // ASCII + Latin-1 only: safe in the printer font
   assert.doesNotMatch(zpl, /516|743/); // never the full phone number
   assert.match(zpl, /\^PQ1,0,1,Y/);
   assert.doesNotMatch(zpl, /~DG/); // no logo download

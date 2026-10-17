@@ -26,3 +26,8 @@ test('copies are limited to 1–3', () => {
   assert.match(buildRepairLabel(label, 203, size, 9), /\^PQ3,/);
   assert.match(buildRepairLabel(label, 203, size, 0), /\^PQ1,/);
 });
+
+test('only characters the ZD411 built-in font can print (ASCII + Latin-1)', () => {
+  const z = buildRepairLabel(label, 203, size);
+  assert.deepEqual([...z].filter((ch) => ch.codePointAt(0) > 0xff), []);
+});
