@@ -30,7 +30,7 @@ Ding repair intake and management for MOKU Surf Shop: intake on the iPad, QR lab
 
 ```
 npm test
-node --no-warnings scripts/seed-moku.js data/dev.sqlite "Owner Name"
+node --no-warnings scripts/seed-moku.js data/dev.sqlite "Tom Gleason"
 ```
 
 ## Plan

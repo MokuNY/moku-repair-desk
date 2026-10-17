@@ -40,10 +40,11 @@ const shop = createShop(db, {
 });
 const owner = createStaff(db, shop.id, null, { name: ownerName, role: 'owner' });
 createStaff(db, shop.id, owner, { name: 'Carolyn', role: 'staff', canRecordPayouts: true });
+for (const name of ['Emma', 'Danny', 'John']) createStaff(db, shop.id, owner, { name, role: 'staff' });
 const keith = createPartner(db, shop.id, owner, { name: 'Keith' });
 updateShopSettings(db, shop.id, owner, {
   defaultPartnerId: keith.id,
   ...(domain === 'moku-surf-shop-ny.myshopify.com' ? LIVE_DING_REPAIR : {}),
 });
 
-console.log(`Set up ${shop.name} (${domain}) in ${file}: owner ${ownerName}, Carolyn (payouts), partner Keith, next job MOKU-0041.`);
+console.log(`Set up ${shop.name} (${domain}) in ${file}: owner ${ownerName}, Carolyn (payouts), Emma, Danny, John, partner Keith, next job MOKU-0041.`);
