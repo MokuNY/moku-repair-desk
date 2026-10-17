@@ -10,7 +10,7 @@
 
 import { normalizeUsPhone } from './phone.js';
 
-export const DEFAULT_API_VERSION = '2026-07';
+export const DEFAULT_API_VERSION = '2026-10'; // current stable release, matches the Dev Dashboard app
 const REFRESH_EARLY_MS = 5 * 60_000;
 const MAX_ATTEMPTS = 4;
 

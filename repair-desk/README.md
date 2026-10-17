@@ -37,9 +37,9 @@ node --no-warnings scripts/seed-moku.js data/dev.sqlite "Tom Gleason"
 
 | Phase | Delivers | Status |
 | --- | --- | --- |
-| 1. Foundation | Shops, staff, roles, partners, settings, audit log | In progress |
-| 2. Intake | Customer lookup, ticket, QR label with safe retry/reprint | Next |
+| 1. Foundation | Shops, staff, roles, partners, settings, audit log | Done |
+| 2. Intake | Customer lookup, ticket, QR label with safe retry/reprint | In progress |
 | 3. Repair work | Inspection, Keith's charge, fee, custody events, call log | |
-| 4. Pickup | Ding Repair POS sale matched to the job, completion on handoff | |
-| 5. Ledger and reports | Keith payable, payouts, dashboard, spreadsheet export | |
+| 4. Pickup | Shopify POS tile: scan the QR label, add the repair to the cart with the job number attached; sale matched to the job; completion on handoff | |
+| 5. Ledger and reports | Keith payable, payouts, dashboard, spreadsheet export; Repair tickets panel in Shopify admin | |
 | 6. Import and go-live | 40 spreadsheet jobs, then live | |
