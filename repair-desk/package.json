@@ -1,0 +1,13 @@
+{
+  "name": "moku-repair-desk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ding repair intake and management for MOKU Surf Shop. No npm dependencies: Node built-ins only (node:sqlite, node:crypto, node:http).",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --no-warnings --test test/*.test.js"
+  }
+}
