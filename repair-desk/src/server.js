@@ -31,6 +31,10 @@ import { sessionManager } from './sessions.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = fs.readFileSync(path.join(here, 'app.html'), 'utf8');
+// Brand images, loaded once. Only these names are served.
+const ASSETS = Object.fromEntries(
+  ['moku-wordmark.png', 'moku-bolt.png', 'apple-touch-icon.png', 'favicon.png', 'paladins-expanded.ttf'].map((f) => [f, fs.readFileSync(path.join(here, 'assets', f))]),
+);
 const MAX_BODY = 64 * 1024;
 
 /**
@@ -47,6 +51,11 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
 
     if (req.method === 'GET' && (p === '/' || /^\/t\/[A-Za-z0-9-]{4,20}$/.test(p) || p === '/app')) return page(res);
     if (req.method === 'GET' && p === '/health') return json(res, 200, { ok: true });
+    const asset = req.method === 'GET' && /^\/assets\/([a-z-]+\.(?:png|ttf))$/.exec(p);
+    if (asset && ASSETS[asset[1]]) {
+      res.writeHead(200, { 'Content-Type': asset[1].endsWith('.ttf') ? 'font/ttf' : 'image/png', 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(ASSETS[asset[1]]);
+    }
     if (!p.startsWith('/api/')) return json(res, 404, { error: 'Not found' });
 
     if (req.method === 'POST') {
@@ -203,7 +212,7 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin',
     });
