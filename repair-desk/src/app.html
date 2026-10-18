@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Repair Desk">
+<meta name="theme-color" content="#111111">
+<title>MOKU Repair Desk</title>
+<style>
+:root {
+  --ink: #141414; --ink-2: #5b5b57; --ink-3: #8c8b85; --line: #e4e2dc; --paper: #f6f5f1; --card: #ffffff;
+  --red: #c8352a; --red-ink: #ffffff; --red-soft: #fbe9e6;
+  --tape: #2f8f4e; --tape-soft: #e5f3e8; --amber: #a86b0b; --amber-soft: #fbf0dc; --blue: #2b5ea8; --blue-soft: #e7eef9;
+  --r: 14px; --tap: 60px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body { min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.top { position: sticky; top: 0; z-index: 5; background: var(--ink); color: #fff; display: flex; align-items: center; gap: 16px; padding: calc(10px + env(safe-area-inset-top)) 20px 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; color: #fff; }
+.brand b { font-size: 26px; font-weight: 900; font-style: italic; letter-spacing: 0.04em; }
+.brand span { font-size: 15px; color: #c9c7c0; letter-spacing: 0.02em; }
+.top .sp { flex: 1; }
+.who { font-size: 15px; color: #e6e4de; }
+.top button { background: transparent; color: #fff; border: 1px solid #4a4a46; border-radius: 10px; padding: 8px 14px; font-size: 15px; }
+.demo { background: var(--amber); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 28px; margin: 4px 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 24px 0 10px; color: var(--ink-2); font-weight: 600; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+.actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.action { min-height: 112px; border-radius: var(--r); border: 0; text-align: left; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; font-size: 24px; font-weight: 700; }
+.action small { font-size: 15px; font-weight: 500; opacity: 0.85; }
+.action.primary { background: var(--red); color: var(--red-ink); }
+.action.plain { background: var(--card); border: 1px solid var(--line); }
+.cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.col h3 { font-size: 15px; margin: 0 0 8px; color: var(--ink-2); display: flex; justify-content: space-between; }
+.col h3 .n { background: var(--line); border-radius: 999px; padding: 0 9px; color: var(--ink); }
+.job { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.job .no { font-weight: 800; font-size: 17px; letter-spacing: 0.01em; }
+.job .nm { font-size: 16px; margin-top: 2px; }
+.job .bd { font-size: 14px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.pill { font-size: 12.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--paper); color: var(--ink-2); }
+.pill.warn { background: var(--amber-soft); color: var(--amber); }
+.pill.good { background: var(--tape-soft); color: var(--tape); }
+.pill.red { background: var(--red-soft); color: var(--red); }
+.empty { color: var(--ink-3); font-size: 15px; padding: 10px 2px; }
+label { display: block; font-size: 15px; font-weight: 600; color: var(--ink-2); margin: 16px 0 6px; }
+input, textarea { width: 100%; min-height: 56px; border: 1px solid #cfcdc6; border-radius: 12px; padding: 12px 14px; font-size: 19px; background: #fff; }
+textarea { min-height: 96px; resize: vertical; }
+input:focus, textarea:focus { outline: 3px solid #e8a49c; border-color: var(--red); }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+.btn { min-height: var(--tap); border-radius: 12px; border: 1px solid #cfcdc6; background: #fff; padding: 0 22px; font-size: 18px; font-weight: 600; }
+.btn.go { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: 0.45; }
+.list button.pick { display: flex; width: 100%; justify-content: space-between; align-items: center; text-align: left; min-height: 64px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; font-size: 18px; }
+.list button.pick small { color: var(--ink-2); font-size: 15px; }
+.err { color: var(--red); font-weight: 600; margin-top: 10px; min-height: 1.4em; }
+.ok { background: var(--tape-soft); color: var(--tape); border-radius: 12px; padding: 14px 16px; font-weight: 600; }
+.warnbox { background: var(--amber-soft); color: #6d4607; border-radius: 12px; padding: 12px 16px; font-size: 16px; margin-bottom: 14px; }
+.ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ticket-no { font-size: 40px; font-weight: 900; letter-spacing: 0.01em; line-height: 1; }
+.status-now { font-size: 17px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); }
+.status-now.ready { background: var(--tape-soft); color: var(--tape); }
+.status-now.done { background: var(--line); color: var(--ink-2); }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0 8px; }
+.step { text-align: center; font-size: 13px; font-weight: 600; color: var(--ink-3); padding-top: 10px; border-top: 5px solid var(--line); }
+.step.done { color: var(--ink); border-color: var(--ink); }
+.step.now { color: var(--red); border-color: var(--red); }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+.kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; font-size: 17px; }
+.kv dt { color: var(--ink-2); }
+.kv dd { margin: 0; }
+.big-price { font-size: 34px; font-weight: 800; }
+.money-line { display: flex; justify-content: space-between; font-size: 17px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.money-line:last-child { border-bottom: 0; }
+.calls li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 16px; list-style: none; }
+.calls { padding: 0; margin: 10px 0 0; }
+.calls .when { color: var(--ink-3); font-size: 14px; }
+a.tel { color: var(--blue); font-weight: 600; text-decoration: none; }
+.names { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.names button { min-height: 96px; font-size: 24px; font-weight: 700; border-radius: var(--r); background: #fff; border: 1px solid var(--line); }
+.pin-dots { display: flex; gap: 14px; justify-content: center; margin: 18px 0; }
+.pin-dots i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+.pin-dots i.on { background: var(--ink); }
+.keys { display: grid; grid-template-columns: repeat(3, 96px); gap: 14px; justify-content: center; }
+.keys button { height: 80px; border-radius: 18px; background: #fff; border: 1px solid var(--line); font-size: 30px; font-weight: 600; }
+.center { text-align: center; }
+.sheet { background: var(--card); border-radius: var(--r); border: 1px solid var(--line); padding: 18px; margin-top: 12px; }
+.muted { color: var(--ink-2); }
+@media (max-width: 900px) { .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } .two { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .actions, .names, .cols { grid-template-columns: minmax(0, 1fr); } .grid2, .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .brand span { display: none; } main { padding: 16px; } }
+</style>
+</head>
+<body>
+<header class="top" id="top" hidden>
+  <a class="brand" href="#/"><b>MOKU</b><span>Repair Desk</span></a>
+  <span id="demo" class="demo" hidden>Demo</span>
+  <span class="sp"></span>
+  <span class="who" id="who"></span>
+  <button id="signout" type="button">Sign out</button>
+</header>
+<main id="app" aria-live="polite"></main>
+<script>
+'use strict';
+const app = document.getElementById('app');
+let me = null, env = {};
+
+// ---------- tiny DOM helper: never builds HTML from strings
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) el.append(k.nodeType ? k : String(k));
+  return el;
+}
+const $ = (sel) => app.querySelector(sel);
+const money = (c) => (c === null || c === undefined ? '—' : '$' + (c / 100).toFixed(2));
+const days = (iso) => Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 864e5));
+const when = (iso) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => (b % 36).toString(36)).join('');
+
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin' });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/api/signin') { me = null; location.hash = '#/signin'; throw new Error('Sign in'); }
+  if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong'), { data });
+  return data;
+}
+function show(...nodes) { app.replaceChildren(...nodes.flat().filter((n) => n !== null && n !== undefined && n !== false && n !== '')); window.scrollTo(0, 0); }
+function fail(el, err) { el.textContent = err.message; }
+
+// ---------- router
+const routes = [
+  [/^#\/signin$/, signIn],
+  [/^#\/checkin$/, checkIn],
+  [/^#\/find$/, () => find(false)],
+  [/^#\/pickup$/, () => find(true)],
+  [/^#\/t\/([A-Za-z0-9-]+)$/, (m) => ticket(m[1].toUpperCase())],
+  [/^#?\/?$/, home],
+];
+async function route() {
+  // A scanned label opens /t/MOKU-0041: turn it into the in-app route.
+  const path = location.pathname.match(/^\/t\/([A-Za-z0-9-]+)$/);
+  if (path) { history.replaceState(null, '', '/#/t/' + path[1]); }
+  if (!me && location.hash !== '#/signin') {
+    try { const r = await api('/api/me'); me = r.me; env = r; } catch { return; }
+  }
+  document.getElementById('top').hidden = !me;
+  if (me) { document.getElementById('who').textContent = me.name; document.getElementById('demo').hidden = !env.demo; }
+  for (const [re, fn] of routes) { const m = location.hash.match(re); if (m) return fn(m); }
+  location.hash = '#/';
+}
+addEventListener('hashchange', route);
+document.getElementById('signout').addEventListener('click', async () => { await api('/api/signout', {}); me = null; location.hash = '#/signin'; });
+
+// ---------- sign in
+async function signIn() {
+  document.getElementById('top').hidden = true;
+  const { shop, staff } = await api('/api/staff');
+  show(h('h1', { class: 'center' }, shop), h('p', { class: 'center muted' }, 'Tap your name'),
+    h('div', { class: 'names' }, staff.map((s) => h('button', { type: 'button', onclick: () => pinPad(s) }, s.name))));
+}
+function pinPad(s) {
+  let pin = '', first = null;
+  const choosing = !s.hasPin;
+  const title = h('h1', { class: 'center' }, choosing ? `Hi ${s.name}. Choose a PIN` : s.name);
+  const hint = h('p', { class: 'center muted' }, choosing ? '4 to 6 digits. You\'ll use it every time.' : 'Enter your PIN');
+  const dots = h('div', { class: 'pin-dots' });
+  const err = h('div', { class: 'err center' });
+  const draw = () => dots.replaceChildren(...Array.from({ length: Math.max(4, pin.length) }, (_, i) => h('i', { class: i < pin.length ? 'on' : '' })));
+  async function submit() {
+    if (pin.length < 4) return;
+    if (choosing && first === null) { first = pin; pin = ''; hint.textContent = 'Enter it again to confirm'; return draw(); }
+    if (choosing && pin !== first) { first = null; pin = ''; hint.textContent = 'Choose a PIN'; err.textContent = "Those didn't match. Try again."; return draw(); }
+    try {
+      const r = await api('/api/signin', choosing ? { staffId: s.id, newPin: pin } : { staffId: s.id, pin });
+      me = r.me; location.hash = '#/'; route();
+    } catch (e) { pin = ''; draw(); fail(err, e); }
+  }
+  const key = (k) => h('button', { type: 'button', 'aria-label': k === '⌫' ? 'Delete' : k, onclick: () => {
+    err.textContent = '';
+    if (k === '⌫') pin = pin.slice(0, -1); else if (k === 'OK') return submit(); else if (pin.length < 6) pin += k;
+    draw(); if (!choosing && pin.length === 6) submit();
+  } }, k);
+  draw();
+  show(title, hint, dots, h('div', { class: 'keys' }, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'].map(key)), err,
+    h('p', { class: 'center' }, h('button', { class: 'btn', type: 'button', onclick: signIn }, 'Not me')));
+}
+
+// ---------- home: three actions + open boards
+async function home() {
+  const { tickets } = await api('/api/board');
+  const groups = [
+    ['Dropped off', ['received', 'inspected', 'awaiting_approval']],
+    ['With Keith', ['at_partner']],
+    ['Back from Keith', ['back_from_partner']],
+    ['Ready for pickup', ['ready_for_pickup']],
+  ];
+  show(
+    h('div', { class: 'actions' },
+      h('button', { class: 'action primary', type: 'button', onclick: () => (location.hash = '#/checkin') }, 'Check in a board', h('small', {}, 'Customer, board, what\'s wrong')),
+      h('button', { class: 'action plain', type: 'button', onclick: () => (location.hash = '#/find') }, 'Find a board', h('small', {}, 'Job number, name or phone')),
+      h('button', { class: 'action plain', type: 'button', onclick: () => (location.hash = '#/pickup') }, 'Pick up', h('small', {}, 'Scan the label or search'))),
+    h('h2', {}, `Boards in the shop · ${tickets.length}`),
+    h('div', { class: 'cols' }, groups.map(([name, sts]) => {
+      const list = tickets.filter((t) => sts.includes(t.status));
+      return h('section', { class: 'col' }, h('h3', {}, name, h('span', { class: 'n' }, list.length)),
+        list.length ? list.map(jobCard) : h('div', { class: 'empty' }, 'None'));
+    })));
+}
+function jobCard(t) {
+  const d = days(t.receivedAt);
+  return h('button', { class: 'job', type: 'button', onclick: () => (location.hash = '#/t/' + t.jobNumber) },
+    h('div', { class: 'no' }, t.jobNumber), h('div', { class: 'nm' }, t.customer), h('div', { class: 'bd' }, t.board || t.repair || ' '),
+    h('div', { class: 'meta' },
+      h('span', { class: 'pill' + (d > 30 ? ' warn' : '') }, d === 0 ? 'Today' : `${d} day${d === 1 ? '' : 's'}`),
+      t.price === null ? h('span', { class: 'pill' }, 'No price yet') : h('span', { class: 'pill' + (t.balance > 0 ? ' red' : ' good') }, t.balance > 0 ? `Owes ${money(t.balance)}` : 'Paid'),
+      t.needsReview && h('span', { class: 'pill warn' }, 'Check')));
+}
+
+// ---------- check in
+function checkIn() {
+  const requestId = rid();
+  let chosen = null;
+  const q = h('input', { type: 'search', placeholder: '516 555 0101 or Brendan McCarthy', autocomplete: 'off', inputmode: 'search', 'aria-label': 'Find customer' });
+  const results = h('div', { class: 'list' });
+  const custErr = h('div', { class: 'err' });
+  const custBox = h('div', {});
+  let timer;
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(search, 300); });
+  async function search() {
+    const term = q.value.trim(); custErr.textContent = '';
+    if (term.length < 2) return results.replaceChildren();
+    try {
+      const { customers } = await api('/api/customers?q=' + encodeURIComponent(term));
+      results.replaceChildren(...customers.map((c) => h('button', { class: 'pick', type: 'button', onclick: () => choose(c) }, h('span', {}, c.displayName), h('small', {}, c.phoneE164 ? fmtPhone(c.phoneE164) : 'No phone'))),
+        h('button', { class: 'pick', type: 'button', onclick: newCustomer }, h('span', {}, '+ New customer'), h('small', {}, customers.length ? 'Not listed' : 'No match')));
+    } catch (e) { fail(custErr, e); }
+  }
+  function choose(c) {
+    chosen = c;
+    custBox.replaceChildren(h('div', { class: 'ok row' }, h('span', { style: 'flex:1' }, c.displayName + (c.phoneE164 ? ' · ' + fmtPhone(c.phoneE164) : '')),
+      h('button', { class: 'btn', type: 'button', onclick: () => { chosen = null; custBox.replaceChildren(q, results, custErr); q.focus(); } }, 'Change')));
+    $('#board').focus();
+  }
+  function newCustomer() {
+    const parts = q.value.trim();
+    const isPhone = /\d{3}/.test(parts);
+    const fn = h('input', { value: isPhone ? '' : parts.split(' ')[0] || '', autocomplete: 'off', 'aria-label': 'First name' });
+    const ln = h('input', { value: isPhone ? '' : parts.split(' ').slice(1).join(' '), autocomplete: 'off', 'aria-label': 'Last name' });
+    const ph = h('input', { value: isPhone ? parts : '', inputmode: 'tel', autocomplete: 'off', 'aria-label': 'Phone' });
+    const e = h('div', { class: 'err' });
+    custBox.replaceChildren(h('div', { class: 'sheet' }, h('div', { class: 'grid2' }, h('div', {}, h('label', {}, 'First name'), fn), h('div', {}, h('label', {}, 'Last name'), ln)),
+      h('label', {}, 'Phone'), ph, e,
+      h('div', { class: 'row' }, h('button', { class: 'btn dark', type: 'button', onclick: async () => {
+        try { const { customer } = await api('/api/customers', { firstName: fn.value.trim(), lastName: ln.value.trim(), phone: ph.value.trim() }); choose(customer); } catch (x) { fail(e, x); }
+      } }, 'Add customer'), h('button', { class: 'btn', type: 'button', onclick: () => custBox.replaceChildren(q, results, custErr) }, 'Back to search'))));
+    (fn.value ? ph : fn).focus();
+  }
+  custBox.append(q, results, custErr);
+  const board = h('input', { id: 'board', placeholder: "9'0 Fish Stix, blue", autocomplete: 'off' });
+  const repair = h('textarea', { placeholder: 'Rail ding near the nose, center fin box' });
+  const notes = h('textarea', { placeholder: 'Fins in the bag, leash left on' });
+  const err = h('div', { class: 'err' });
+  const go = h('button', { class: 'btn go wide', type: 'button', onclick: submit }, 'Check in and print label');
+  async function submit() {
+    err.textContent = '';
+    if (!chosen) return (err.textContent = 'Pick or add the customer first.');
+    go.disabled = true;
+    try {
+      const r = await api('/api/tickets', { requestId, customer: chosen, board: board.value, repair: repair.value, notes: notes.value });
+      const lbl = r.label?.status === 'sent' ? 'Label printed.' : r.label?.status === 'off' ? 'Label printing is off here.' : `Label didn't print: ${r.label?.error || 'try Reprint on the ticket'}`;
+      sessionStorage.setItem('flash', `${r.jobNumber} checked in. ${lbl}`);
+      location.hash = '#/t/' + r.jobNumber;
+    } catch (e) { go.disabled = false; fail(err, e); }
+  }
+  show(h('h1', {}, 'Check in a board'),
+    h('div', { class: 'card' }, h('label', {}, 'Customer'), custBox,
+      h('label', { for: 'board' }, 'Board'), board, h('label', {}, "What's wrong"), repair,
+      h('label', {}, 'Notes: fins, leash, bag'), notes,
+      h('p', { class: 'muted' }, 'Green tape on every ding. Name and phone on the bottom of the board.'),
+      err, go));
+  q.focus();
+}
+function fmtPhone(e) { const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(e || ''); return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e; }
+
+// ---------- find / pick up
+function find(pickup) {
+  const q = h('input', { type: 'search', placeholder: 'MOKU-0041, name or phone', autocomplete: 'off', 'aria-label': 'Search' });
+  const out = h('div', {});
+  const err = h('div', { class: 'err' });
+  let timer;
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); });
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && /^[a-z]{2,8}-\d{4,6}$/i.test(q.value.trim())) location.hash = '#/t/' + q.value.trim().toUpperCase(); });
+  async function run() {
+    err.textContent = '';
+    try {
+      const term = q.value.trim();
+      if (term.length < 2) return initial();
+      const { open, archive } = await api('/api/find?q=' + encodeURIComponent(term));
+      const list = pickup ? open.filter((t) => t.status === 'ready_for_pickup') : open;
+      out.replaceChildren(h('h2', {}, pickup ? 'Ready for pickup' : 'In the shop'), list.length ? h('div', { class: 'cols' }, list.map(jobCard)) : h('div', { class: 'empty' }, 'No open boards match.'),
+        !pickup && h('h2', {}, 'Old repairs'), !pickup && (archive.length ? archive.map(oldCard) : h('div', { class: 'empty' }, 'No old repairs match.')));
+    } catch (e) { fail(err, e); }
+  }
+  async function initial() {
+    if (!pickup) return out.replaceChildren(h('p', { class: 'muted' }, 'Search open boards and old repairs.'));
+    const { tickets } = await api('/api/board');
+    const ready = tickets.filter((t) => t.status === 'ready_for_pickup');
+    out.replaceChildren(h('h2', {}, 'Ready for pickup'), ready.length ? h('div', { class: 'cols' }, ready.map(jobCard)) : h('div', { class: 'empty' }, 'Nothing is ready yet.'));
+  }
+  show(h('h1', {}, pickup ? 'Pick up' : 'Find a board'), pickup && h('p', { class: 'muted' }, "Scan the board's label with the iPad camera, or search."), q, err, out);
+  initial(); q.focus();
+}
+function oldCard(a) {
+  return h('div', { class: 'job' }, h('div', { class: 'row' }, h('span', { class: 'no' }, a.jobNumber), h('span', { class: 'pill' }, a.status)),
+    h('div', { class: 'nm' }, a.customer || 'No name', a.phone ? ' · ' + a.phone : ''), h('div', { class: 'bd' }, [a.board, a.repair].filter(Boolean).join(' — ')),
+    h('div', { class: 'meta' }, a.received && h('span', { class: 'pill' }, 'In ' + a.received), a.pickedUp && h('span', { class: 'pill' }, 'Out ' + a.pickedUp),
+      a.price && h('span', { class: 'pill' }, a.price + ' · ' + a.payment)));
+}
+
+// ---------- ticket
+const FLOW = [['received', 'Dropped off'], ['at_partner', 'With Keith'], ['back_from_partner', 'Back'], ['ready_for_pickup', 'Ready']];
+async function ticket(job) {
+  let data;
+  try { data = await api('/api/tickets/' + encodeURIComponent(job)); }
+  catch (e) { return show(h('h1', {}, job), h('div', { class: 'err' }, e.message), h('button', { class: 'btn', type: 'button', onclick: () => (location.hash = '#/') }, 'Back')); }
+  if (data.archived) return show(h('h1', {}, job), h('div', { class: 'warnbox' }, 'This is an old repair from the spreadsheet. It can be read but not changed.'), oldCard(data.archived),
+    data.archived.notes && h('p', {}, data.archived.notes), h('button', { class: 'btn', type: 'button', onclick: () => history.back() }, 'Back'));
+  render(data.ticket);
+  function render(t) {
+    const flash = sessionStorage.getItem('flash'); sessionStorage.removeItem('flash');
+    const err = h('div', { class: 'err' });
+    const idx = FLOW.findIndex(([s]) => s === t.status);
+    const closed = t.status === 'completed' || t.status === 'cancelled';
+    const act = (path, body) => async () => { err.textContent = ''; try { const r = await api(`/api/tickets/${t.jobNumber}/${path}`, body); render(r.ticket); } catch (e) { fail(err, e); } };
+
+    // One big next-step button.
+    const next = {
+      received: h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'at_partner' }) }, 'Keith picked it up'),
+      inspected: h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'at_partner' }) }, 'Keith picked it up'),
+      awaiting_approval: h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'at_partner' }) }, 'Customer OK\'d · send to Keith'),
+      at_partner: h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'back_from_partner' }) }, 'Back from Keith'),
+      back_from_partner: h('span', { class: 'row' },
+        h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'ready_for_pickup', call: 'spoke', note: 'Told customer it is ready' }) }, 'Called: spoke'),
+        h('button', { class: 'btn go', type: 'button', onclick: act('status', { to: 'ready_for_pickup', call: 'left_message', note: 'Left message: ready for pickup' }) }, 'Called: left message'),
+        h('button', { class: 'btn', type: 'button', onclick: act('status', { to: 'ready_for_pickup', call: 'texted', note: 'Texted: ready for pickup' }) }, 'Texted')),
+      ready_for_pickup: h('button', { class: 'btn go', type: 'button', onclick: () => {
+        const m = t.money;
+        if (m.balance > 0 && !confirm(`${t.customer.name} still owes ${money(m.balance)}. Hand the board over anyway?`)) return;
+        act('status', { to: 'completed' })();
+      } }, 'Picked up · board handed over'),
+    }[t.status];
+
+    // Money card
+    const charge = h('input', { inputmode: 'decimal', placeholder: '$0.00', 'aria-label': "Keith's charge", value: t.money.partnerCharge === null ? '' : (t.money.partnerCharge / 100).toFixed(2) });
+    const more = h('div', { hidden: true });
+    const fee = h('input', { inputmode: 'decimal', 'aria-label': 'MOKU fee', value: (t.money.shopFee / 100).toFixed(2) });
+    const agreed = h('input', { inputmode: 'decimal', placeholder: 'Leave blank to use Keith + fee', 'aria-label': 'Agreed price', value: t.money.agreedPrice === null ? '' : (t.money.agreedPrice / 100).toFixed(2) });
+    more.append(h('div', { class: 'grid2' }, h('div', {}, h('label', {}, 'MOKU fee'), fee), h('div', {}, h('label', {}, 'Agreed price'), agreed)),
+      h('button', { class: 'btn', type: 'button', style: 'margin-top:12px', onclick: () => act('price', { shopFee: fee.value.trim() || '0', agreedPrice: agreed.value.trim() || null })() }, 'Save price'));
+    const pay = h('input', { inputmode: 'decimal', 'aria-label': 'Amount paid', value: t.money.balance > 0 ? (t.money.balance / 100).toFixed(2) : '' });
+
+    const moneyCard = h('div', { class: 'card' },
+      h('div', { class: 'muted' }, 'Customer price'), h('div', { class: 'big-price' }, money(t.money.price)),
+      t.money.price === null && h('div', { class: 'muted' }, "Enter Keith's charge after he looks at it."),
+      h('div', { style: 'margin-top:10px' },
+        h('div', { class: 'money-line' }, h('span', {}, "Keith's charge"), h('span', {}, money(t.money.partnerCharge))),
+        h('div', { class: 'money-line' }, h('span', {}, 'MOKU fee'), h('span', {}, money(t.money.shopFee))),
+        t.money.agreedPrice !== null && h('div', { class: 'money-line' }, h('span', {}, 'Agreed price'), h('span', {}, money(t.money.agreedPrice))),
+        h('div', { class: 'money-line' }, h('span', {}, 'Paid'), h('span', {}, money(t.money.paid))),
+        h('div', { class: 'money-line' }, h('b', {}, 'Owes'), h('b', {}, money(t.money.balance)))),
+      !closed && h('div', {},
+        h('label', {}, "Keith's charge ($)"), h('div', { class: 'row' }, h('span', { style: 'flex:1' }, charge), h('button', { class: 'btn dark', type: 'button', onclick: () => act('price', { partnerCharge: charge.value.trim() || null })() }, 'Save')),
+        h('button', { class: 'btn', type: 'button', style: 'margin-top:12px', onclick: (e) => { more.hidden = !more.hidden; e.target.textContent = more.hidden ? 'Change price' : 'Hide'; } }, 'Change price'), more,
+        t.money.price !== null && t.money.balance > 0 && h('div', {}, h('label', {}, 'Cash taken at the register ($)'),
+          h('div', { class: 'row' }, h('span', { style: 'flex:1' }, pay), h('button', { class: 'btn dark', type: 'button', onclick: () => act('payment', { amount: pay.value.trim(), method: 'cash' })() }, 'Record payment')))));
+
+    // Calls
+    const callNote = h('input', { placeholder: 'Optional note', 'aria-label': 'Call note' });
+    const callsCard = h('div', { class: 'card' }, h('div', { class: 'muted' }, 'Calls'),
+      !closed && h('div', {}, h('div', { class: 'row', style: 'margin:10px 0' },
+        h('button', { class: 'btn', type: 'button', onclick: () => act('call', { outcome: 'left_message', note: callNote.value })() }, 'Left message'),
+        h('button', { class: 'btn', type: 'button', onclick: () => act('call', { outcome: 'spoke', note: callNote.value })() }, 'Spoke'),
+        h('button', { class: 'btn', type: 'button', onclick: () => act('call', { outcome: 'texted', note: callNote.value })() }, 'Texted')), callNote),
+      t.calls.length ? h('ul', { class: 'calls' }, t.calls.map((c) => h('li', {}, h('b', {}, { left_message: 'Left message', spoke: 'Spoke', texted: 'Texted', no_answer: 'No answer', note: 'Note' }[c.outcome]),
+        c.note ? ' · ' + c.note : '', h('div', { class: 'when' }, `${when(c.at)} · ${c.by || ''}`)))) : h('div', { class: 'empty' }, 'No calls yet.'));
+
+    show(
+      flash && h('div', { class: 'ok', style: 'margin-bottom:14px' }, flash),
+      t.needsReview && h('div', { class: 'warnbox' }, 'Check: ' + (t.reviewNote || 'details from the old spreadsheet')),
+      h('div', { class: 'ticket-head' },
+        h('div', {}, h('div', { class: 'ticket-no' }, t.jobNumber), h('div', { style: 'font-size:22px;font-weight:700;margin-top:8px' }, t.customer.name),
+          t.customer.tel ? h('a', { class: 'tel', href: 'tel:' + t.customer.tel }, t.customer.phone) : h('span', { class: 'muted' }, 'No phone')),
+        h('span', { class: 'status-now' + (t.status === 'ready_for_pickup' ? ' ready' : closed ? ' done' : '') }, t.statusLabel)),
+      !closed && h('div', { class: 'steps' }, FLOW.map(([s, name], i) => h('div', { class: 'step' + (i < idx ? ' done' : i === idx ? ' now' : '') }, name))),
+      !closed && h('div', { class: 'row', style: 'margin-top:12px' }, next),
+      err,
+      h('div', { class: 'two' },
+        h('div', {}, h('div', { class: 'card' },
+          h('dl', { class: 'kv' }, h('dt', {}, 'Board'), h('dd', {}, t.board || '—'), h('dt', {}, "What's wrong"), h('dd', {}, t.repair || '—'),
+            h('dt', {}, 'Notes'), h('dd', {}, t.notes || '—'), h('dt', {}, 'Checked in'), h('dd', {}, `${when(t.receivedAt)} · ${t.acceptedBy || ''}`),
+            h('dt', {}, 'Repairer'), h('dd', {}, t.partner))),
+          h('div', { style: 'height:16px' }), callsCard),
+        h('div', {}, moneyCard,
+          h('div', { class: 'row', style: 'margin-top:14px' },
+            h('button', { class: 'btn', type: 'button', onclick: async () => { err.textContent = ''; try { const r = await api(`/api/tickets/${t.jobNumber}/reprint`, {}); sessionStorage.setItem('flash', r.label.status === 'sent' ? 'Label printed.' : r.label.status === 'off' ? 'Label printing is off here.' : `Label didn't print: ${r.label.error}`); render(r.ticket); } catch (e) { fail(err, e); } } }, 'Reprint label'),
+            h('button', { class: 'btn', type: 'button', onclick: () => (location.hash = '#/') }, 'Done')))));
+  }
+}
+
+route();
+</script>
+</body>
+</html>

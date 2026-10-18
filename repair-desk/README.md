@@ -2,7 +2,7 @@
 
 Ding repair intake and management for MOKU Surf Shop: intake on the iPad, QR label on the ZD411, Keith's work and payouts, pickup paid through Shopify POS.
 
-**Status:** phase 1 foundation. Code and tests only. Nothing is deployed.
+**Status:** foundation, intake, import/archive/export and the iPad screens are built and tested. Nothing is deployed.
 
 ## Design rules
 
@@ -42,6 +42,19 @@ The Repair Desk is the single source of truth. The **Moku Ding Repair** sheet (R
 - **Persistence:** one SQLite file on a Fly volume (survives deploys and updates). Before any new migration runs, a full copy is written next to it (newest 5 kept). Continuous off-site backup is set up with the deployment.
 
 Real customer data is never committed to this repository; tests use invented rows shaped like the export.
+
+## The iPad app
+
+`src/server.js` serves one page (`src/app.html`) and a JSON API. Screens: sign in (name + PIN), home (Check in · Find a board · Pick up, and every open board by stage), check in, ticket (one next-step button, Keith's charge, calls, payment, reprint), find (open boards and old repairs). Scanning a label opens `/t/MOKU-0186` straight on the ticket.
+
+Safety: signed HttpOnly SameSite=Strict session cookie (12 h), PIN lockout after 5 wrong tries, JSON-only POSTs with an origin check, strict content security policy, no HTML built from strings in the page.
+
+Try it locally with made-up data (PIN 1234 for everyone, printing off):
+
+```
+node --no-warnings scripts/demo.js data/demo.sqlite
+DEMO=1 DATABASE_PATH=data/demo.sqlite node --no-warnings src/server.js   # http://localhost:8080
+```
 
 ## Commands
 
