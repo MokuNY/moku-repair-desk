@@ -43,7 +43,11 @@ The Repair Desk is the single source of truth. The **Moku Ding Repair** sheet (R
 
 Real customer data is never committed to this repository; tests use invented rows shaped like the export.
 
-## The iPad app
+## Counter in Shopify POS (decided Oct 17)
+
+The counter screens move into a Shopify POS UI extension: staff are identified by who is pinned into POS, labels are scanned with the POS camera, and pickup adds the repair to the cart with the job number attached. The web app below stays for owner work (reports, Keith payouts, import/export, archive) and browser access. The server will accept a POS session token (shop verified) plus the pinned staff member, linked once to a Repair Desk staff record.
+
+## The web app
 
 `src/server.js` serves one page (`src/app.html`) and a JSON API. Screens: sign in (name + PIN), home (Check in · Find a board · Pick up, and every open board by stage), check in, ticket (one next-step button, Keith's charge, calls, payment, reprint), find (open boards and old repairs). Scanning a label opens `/t/MOKU-0186` straight on the ticket.
 
