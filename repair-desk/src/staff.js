@@ -14,6 +14,9 @@ export const PERMISSIONS = {
   'payout.record': (s) => s.role === 'owner' || s.can_record_payouts === 1,
   'staff.manage': (s) => s.role === 'owner',
   'settings.manage': (s) => s.role === 'owner',
+  'data.import': (s) => s.role === 'owner',
+  'data.export': (s) => s.role === 'owner', // exports include customer phone numbers
+  'archive.view': () => true, // look up an old repair at the counter
 };
 
 export function can(staff, permission) {

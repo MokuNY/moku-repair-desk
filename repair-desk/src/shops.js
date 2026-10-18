@@ -61,11 +61,18 @@ export function updateShopSettings(db, shopId, actor, changes) {
  * Call inside the transaction that creates the ticket.
  */
 export function takeJobNumber(db, shopId) {
-  const row = db
-    .prepare('UPDATE shops SET next_job_number = next_job_number + 1 WHERE id = ? RETURNING job_prefix, next_job_number - 1 AS n')
-    .get(shopId);
-  if (!row) throw new RangeError(`No shop ${shopId}`);
-  return `${row.job_prefix}-${String(row.n).padStart(4, '0')}`;
+  const take = db.prepare('UPDATE shops SET next_job_number = next_job_number + 1 WHERE id = ? RETURNING job_prefix, next_job_number - 1 AS n');
+  const used = db.prepare(
+    'SELECT 1 FROM archived_repairs WHERE shop_id = ? AND job_number = ? UNION ALL SELECT 1 FROM tickets WHERE shop_id = ? AND job_number = ?',
+  );
+  // Never hand out a number that already belongs to an archived or imported job.
+  for (let i = 0; i < 10_000; i++) {
+    const row = take.get(shopId);
+    if (!row) throw new RangeError(`No shop ${shopId}`);
+    const job = `${row.job_prefix}-${String(row.n).padStart(4, '0')}`;
+    if (!used.get(shopId, job, shopId, job)) return job;
+  }
+  throw new RangeError('Could not find a free job number');
 }
 
 export class PermissionError extends Error {}

@@ -34,7 +34,7 @@ const shop = createShop(db, {
   name: 'MOKU Surf Shop NY',
   shopifyDomain: domain,
   jobPrefix: 'MOKU',
-  nextJobNumber: 41, // spreadsheet ends at MOKU-0040
+  // Job numbers: importing Moku Ding Repair moves the counter past MOKU-0185.
   timezone: 'America/New_York',
   defaultShopFeeCents: 2000,
 });
@@ -47,4 +47,4 @@ updateShopSettings(db, shop.id, owner, {
   ...(domain === 'moku-surf-shop-ny.myshopify.com' ? LIVE_DING_REPAIR : {}),
 });
 
-console.log(`Set up ${shop.name} (${domain}) in ${file}: owner ${ownerName}, Carolyn (payouts), Emma, Danny, John, partner Keith, next job MOKU-0041.`);
+console.log(`Set up ${shop.name} (${domain}) in ${file}: owner ${ownerName}, Carolyn (payouts), Emma, Danny, John, partner Keith. Import Moku Ding Repair next; new jobs then start at MOKU-0186.`);

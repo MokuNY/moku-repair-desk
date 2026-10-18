@@ -19,12 +19,29 @@ Ding repair intake and management for MOKU Surf Shop: intake on the iPad, QR lab
 | --- | --- |
 | `migrations/` | Numbered SQL files, applied once each, in order |
 | `src/db.js` | Open, migrate, transactions |
-| `src/shops.js` | Shops, settings, per-shop job numbers (`MOKU-0041`…) |
+| `src/shops.js` | Shops, settings, per-shop job numbers (continue after the highest imported job: `MOKU-0186`) |
 | `src/staff.js` | Staff, permissions, hashed quick-PIN sign-in |
 | `src/partners.js` | Repair partners (Keith) |
 | `src/audit.js` | Append-only audit log |
 | `src/money.js`, `src/phone.js` | Cents and US phone helpers |
+| `src/pricing.js` | Customer price (agreed price, else Keith charge + fee), payments, call log |
+| `src/import.js` | Import the Moku Ding Repair Repairs CSV: preview, then all-or-nothing apply |
+| `src/records.js` | Archive search, short (13-column) and full (42-column) CSV export |
+| `src/csv.js` | CSV read/write; exports can't carry spreadsheet formulas |
 | `scripts/seed-moku.js` | One-time MOKU setup; defaults to the dev store |
+
+## Replacing the Numbers tracker
+
+The Repair Desk is the single source of truth. The **Moku Ding Repair** sheet (Repairs table, exported as CSV) is imported once:
+
+- **Active jobs** (Received, With Keith, In repair, Awaiting approval, Back at Moku, Customer notified) become live tickets with their dates, notes, contact log and payments. Review notes are kept and flagged.
+- **Completed, Cancelled and Legacy review jobs** go into a read-only archive, every column exactly as written. Staff can search it; it never appears on the counter screen or in active reports.
+- **Duplicates:** the same file is refused the second time. A job number already in the app is skipped if identical and reported if different, never overwritten. Any error or conflict means nothing is imported.
+- **Money:** unknown prices stay unknown, never $0. The import reports totals; for the Oct 16, 2026 export they are $17,780.00 charged, $15,270.00 received, $1,595.00 customer balances, $3,410.00 gross margin, and the export reproduces them.
+- **Job numbers** continue after the highest imported job (MOKU-0186) and never reuse an archived number.
+- **Persistence:** one SQLite file on a Fly volume (survives deploys and updates). Before any new migration runs, a full copy is written next to it (newest 5 kept). Continuous off-site backup is set up with the deployment.
+
+Real customer data is never committed to this repository; tests use invented rows shaped like the export.
 
 ## Commands
 
