@@ -91,4 +91,11 @@ jobs:
         run: npm install -g @shopify/cli@latest
       - name: Deploy the app and POS extension
         working-directory: repair-desk
-        run: shopify app deploy --config repair-desk-test --allow-updates --source-control-url "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+        run: |
+          set -o pipefail
+          shopify version || true
+          if ! shopify app deploy --config repair-desk-test --allow-updates --source-control-url "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" 2>&1 | tee deploy.log; then
+            # Surface the error as annotations so it can be read without the log download.
+            sed 's/\x1b\[[0-9;]*m//g' deploy.log | grep -v '^[[:space:]]*$' | tail -25 | while IFS= read -r line; do echo "::error::${line}"; done
+            exit 1
+          fi
