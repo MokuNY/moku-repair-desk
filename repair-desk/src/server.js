@@ -28,6 +28,7 @@ import { toCents } from './money.js';
 import { normalizeUsPhone, formatUsPhone } from './phone.js';
 import { ShopifyClient, ShopifyError } from './shopify.js';
 import { sessionManager } from './sessions.js';
+import { verifyPosToken, staffForPosMember, unlinkedStaff, linkPosMember, PosAuthError } from './pos-auth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = fs.readFileSync(path.join(here, 'app.html'), 'utf8');
@@ -41,7 +42,7 @@ const MAX_BODY = 64 * 1024;
  * Build the request handler. Everything it needs is passed in, so tests can
  * run it against an in-memory database, a fake Shopify and a fake printer.
  */
-export function createApp({ db, shopId, sessions, customers, printer = null, baseUrl, timezone = 'America/New_York' }) {
+export function createApp({ db, shopId, sessions, customers, printer = null, baseUrl, timezone = 'America/New_York', pos = null }) {
   const shop = getShop(db, shopId);
   if (!shop) throw new RangeError('Shop not set up in this database');
 
@@ -58,11 +59,25 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
     }
     if (!p.startsWith('/api/')) return json(res, 404, { error: 'Not found' });
 
+    // The POS extension calls from Shopify's CDN with a bearer token (never a
+    // cookie), so cross-origin requests are allowed for bearer-token calls only.
+    const bearer = /^Bearer\s/i.test(req.headers.authorization || '');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Pos-Staff-Member',
+        'Access-Control-Max-Age': '600',
+      });
+      return res.end();
+    }
+    if (bearer) res.setHeader('Access-Control-Allow-Origin', '*');
+
     if (req.method === 'POST') {
-      // Cross-site requests can't carry the SameSite=Strict cookie; this is a second lock.
       if (!/^application\/json\b/.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'Send JSON' });
+      // Cookie requests must come from this site (SameSite=Strict is the first lock).
       const origin = req.headers.origin;
-      if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'Wrong origin' });
+      if (!bearer && origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'Wrong origin' });
     }
     const body = req.method === 'POST' ? await readJson(req) : {};
 
@@ -92,11 +107,36 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
     }
 
     // ------------------------------------------------- signed in from here
-    const s = sessions.read(req.headers.cookie);
-    const me = s && s.shopId === shopId ? getStaff(db, shopId, s.staffId) : null;
+    let me = null;
+    if (bearer) {
+      // Shopify POS: the token proves the shop; the pinned-in staff member says who.
+      if (!pos) return json(res, 401, { error: 'POS sign-in is not set up on this server' });
+      try {
+        verifyPosToken(req.headers.authorization, { clientId: pos.clientId, clientSecret: pos.clientSecret, shopDomain: shop.shopify_domain });
+      } catch (err) {
+        if (err instanceof PosAuthError) return json(res, 401, { error: err.message });
+        throw err;
+      }
+      const member = req.headers['x-pos-staff-member'];
+      if (req.method === 'POST' && p === '/api/pos/link') {
+        const linked = linkPosMember(db, shopId, member, body.staffId);
+        return json(res, 200, { me: meOf(linked) });
+      }
+      me = staffForPosMember(db, shopId, member);
+      if (!me) return json(res, 409, { needsLink: true, staff: unlinkedStaff(db, shopId), error: 'Pick your name once to link your POS account' });
+    } else {
+      const s = sessions.read(req.headers.cookie);
+      me = s && s.shopId === shopId ? getStaff(db, shopId, s.staffId) : null;
+    }
     if (!me || me.active !== 1) return json(res, 401, { error: 'Sign in' });
 
-    if (req.method === 'GET' && p === '/api/me') return json(res, 200, { me: meOf(me), shop: shop.name, printing: Boolean(printer), demo: customers.demo === true });
+    if (req.method === 'GET' && p === '/api/me') {
+      const variant = getShop(db, shopId).ding_repair_variant_gid;
+      return json(res, 200, {
+        me: meOf(me), shop: shop.name, printing: Boolean(printer), demo: customers.demo === true,
+        dingRepairVariantId: variant ? variant.replace(/^gid:\/\/shopify\/ProductVariant\//, '') : null,
+      });
+    }
 
     if (req.method === 'GET' && p === '/api/board') {
       const rows = listOpenTickets(db, shopId).map((t) => summary(t));
@@ -288,7 +328,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const printer = env.LABEL_SERVER_URL && env.REPAIR_DESK_TOKEN ? labelServerClient({ url: env.LABEL_SERVER_URL, token: env.REPAIR_DESK_TOKEN }) : null;
   const publicUrl = env.PUBLIC_URL || `http://localhost:${env.PORT || 8080}`;
   const sessions = sessionManager(env.SESSION_SECRET || (env.DEMO === '1' ? crypto.randomBytes(32).toString('hex') : ''), { secure: publicUrl.startsWith('https://') });
-  const app = createApp({ db, shopId: shop.id, sessions, customers, printer, baseUrl: publicUrl, timezone: shop.timezone });
+  const pos = shopifyReady ? { clientId: env.SHOPIFY_CLIENT_ID, clientSecret: env.SHOPIFY_CLIENT_SECRET } : null;
+  const app = createApp({ db, shopId: shop.id, sessions, customers, printer, baseUrl: publicUrl, timezone: shop.timezone, pos });
   http.createServer(app).listen(Number(env.PORT || 8080), () => {
     console.log(`[repair-desk] ${shop.name} on :${env.PORT || 8080} · customers: ${shopifyReady ? 'Shopify' : 'demo'} · printing: ${printer ? 'on' : 'off'}`);
   });

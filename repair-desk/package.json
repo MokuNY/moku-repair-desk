@@ -8,6 +8,10 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "test": "node --no-warnings --test test/*.test.js"
-  }
+    "test": "node --no-warnings --test test/*.test.js",
+    "deploy:shopify": "shopify app deploy --config repair-desk-test --allow-updates"
+  },
+  "workspaces": [
+    "extensions/*"
+  ]
 }

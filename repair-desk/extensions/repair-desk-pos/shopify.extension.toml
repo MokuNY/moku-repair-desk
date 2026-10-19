@@ -1,0 +1,18 @@
+api_version = "2026-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Repair Desk"
+handle = "repair-desk-pos"
+uid = "b6dcd7a1-f088-4054-a1c0-dd64be25d24e9e85018913ae"
+description = "Check in ding repairs, print the QR label, follow the board to Keith and back, and hand it over at pickup."
+
+# Smart grid tile on the POS home screen
+[[extensions.targeting]]
+target = "pos.home.tile.render"
+module = "./src/Tile.jsx"
+
+# Full-screen Repair Desk, opened from the tile
+[[extensions.targeting]]
+target = "pos.home.modal.render"
+module = "./src/Modal.jsx"

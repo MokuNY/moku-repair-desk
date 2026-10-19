@@ -1,0 +1,21 @@
+# Repair Desk (test): Dev Dashboard app installed on moku-repair-test.myshopify.com.
+# Deployed by GitHub Actions with an App Automation Token (no laptop needed).
+client_id = "b7d5b1616386c24ba4c82cc7303bf5fb"
+name = "Repair Desk test"
+application_url = "https://moku-repair-desk-test.fly.dev"
+embedded = false
+
+[access_scopes]
+scopes = "read_customers,write_customers,read_orders,read_products"
+
+[auth]
+redirect_urls = [ "https://moku-repair-desk-test.fly.dev/auth/callback" ]
+
+[webhooks]
+api_version = "2026-10"
+
+[pos]
+embedded = false
+
+[build]
+include_config_on_deploy = true
