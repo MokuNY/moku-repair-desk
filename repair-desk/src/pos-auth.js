@@ -83,6 +83,12 @@ export function unlinkPosMember(db, shopId, owner, staffId) {
   recordEvent(db, shopId, { staffId: owner.id, action: 'staff.pos_unlinked', entityType: 'staff', entityId: Number(staffId) });
 }
 
+/** A POS staff member undoes their own link (picked the wrong name). */
+export function unlinkSelf(db, shopId, me) {
+  db.prepare('UPDATE staff SET shopify_staff_member_id = NULL WHERE shop_id = ? AND id = ?').run(shopId, me.id);
+  recordEvent(db, shopId, { staffId: me.id, action: 'staff.pos_unlinked_self', entityType: 'staff', entityId: me.id });
+}
+
 function normalizeMember(v) {
   const s = String(v ?? '').trim().replace(/^gid:\/\/shopify\/StaffMember\//, '');
   return /^\d{1,20}$/.test(s) ? s : null;

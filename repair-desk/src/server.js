@@ -28,7 +28,7 @@ import { toCents } from './money.js';
 import { normalizeUsPhone, formatUsPhone } from './phone.js';
 import { ShopifyClient, ShopifyError } from './shopify.js';
 import { sessionManager } from './sessions.js';
-import { verifyPosToken, staffForPosMember, unlinkedStaff, linkPosMember, PosAuthError } from './pos-auth.js';
+import { verifyPosToken, staffForPosMember, unlinkedStaff, linkPosMember, unlinkSelf, PosAuthError } from './pos-auth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = fs.readFileSync(path.join(here, 'app.html'), 'utf8');
@@ -124,6 +124,10 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
       }
       me = staffForPosMember(db, shopId, member);
       if (!me) return json(res, 409, { needsLink: true, staff: unlinkedStaff(db, shopId), error: 'Pick your name once to link your POS account' });
+      if (req.method === 'POST' && p === '/api/pos/unlink') {
+        unlinkSelf(db, shopId, me);
+        return json(res, 200, { ok: true });
+      }
     } else {
       const s = sessions.read(req.headers.cookie);
       me = s && s.shopId === shopId ? getStaff(db, shopId, s.staffId) : null;

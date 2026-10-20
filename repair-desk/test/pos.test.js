@@ -103,6 +103,15 @@ test('POS staff do the counter work under their own name', async () => {
   assert.equal(t.ticket.acceptedBy, 'Emma');
 });
 
+test('staff can undo their own link and pick again', async () => {
+  const r = await call('/api/pos/unlink', { member: '111', body: {} });
+  assert.equal(r.status, 200);
+  const again = await call('/api/me', { member: '111' });
+  assert.equal(again.status, 409);
+  const emma = (await again.json()).staff.find((s) => s.name === 'Emma');
+  assert.equal((await call('/api/pos/link', { member: '111', body: { staffId: emma.id } })).status, 200);
+});
+
 test('an owner can reset a wrong link', async () => {
   const emma = db.prepare(`SELECT * FROM staff WHERE name = 'Emma'`).get();
   assert.throws(() => unlinkPosMember(db, shop.id, emma, emma.id), /owner/);

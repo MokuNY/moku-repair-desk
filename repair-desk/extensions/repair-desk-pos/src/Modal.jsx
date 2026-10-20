@@ -100,7 +100,16 @@ function RepairDesk() {
   if (view.name === 'checkin') return <CheckIn go={go} />;
   if (view.name === 'find') return <Find go={go} />;
   if (view.name === 'ticket') return <Ticket job={view.job} go={go} me={me} />;
-  return <Home go={go} me={me} />;
+  const switchUser = async () => {
+    try {
+      await api('/api/pos/unlink', {});
+      setMe(null);
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+  return <Home go={go} me={me} onSwitch={switchUser} />;
 }
 
 // --------------------------------------------------------- first-time link
@@ -120,7 +129,7 @@ function LinkStaff({ staff, onDone }) {
     <s-page heading="Who's working?">
       <s-scroll-box>
         <s-stack direction="block" gap="base">
-          <s-text>Tap your name once. After that the Repair Desk knows you from your POS PIN.</s-text>
+          <s-text>Tap your name once. After that the Repair Desk knows you from your POS PIN. Picked the wrong one? Use "Not you? Switch" on the next screen.</s-text>
           {staff.map((s) => (
             <s-button key={s.id} onClick={() => pick(s)}>{s.name}</s-button>
           ))}
@@ -140,7 +149,7 @@ const STAGES = [
   ['Ready for pickup', ['ready_for_pickup']],
 ];
 
-function Home({ go, me }) {
+function Home({ go, me, onSwitch }) {
   const [tickets, setTickets] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -150,7 +159,10 @@ function Home({ go, me }) {
     <s-page heading="Repair Desk">
       <s-scroll-box>
         <s-stack direction="block" gap="base">
-          <s-text>Working: {me.me.name}{me.printing ? '' : ' · label printing off'}</s-text>
+          <s-stack direction="inline" gap="base">
+            <s-text>Working: {me.me.name}{me.printing ? '' : ' · label printing off'}</s-text>
+            <s-button variant="secondary" onClick={onSwitch}>Not you? Switch</s-button>
+          </s-stack>
           <s-stack direction="inline" gap="base">
             <s-button variant="primary" onClick={() => go({ name: 'checkin' })}>Check in a board</s-button>
             <s-button onClick={() => go({ name: 'find' })}>Find a board</s-button>
