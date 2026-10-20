@@ -98,6 +98,7 @@ function RepairDesk() {
     );
   }
   if (view.name === 'checkin') return <CheckIn go={go} />;
+  if (view.name === 'settings' && me.me.owner) return <Settings go={go} />;
   if (view.name === 'find') return <Find go={go} />;
   if (view.name === 'ticket') return <Ticket job={view.job} go={go} me={me} />;
   const switchUser = async () => {
@@ -167,6 +168,7 @@ function Home({ go, me, onSwitch }) {
             <s-button variant="primary" onClick={() => go({ name: 'checkin' })}>Check in a board</s-button>
             <s-button onClick={() => go({ name: 'find' })}>Find a board</s-button>
             <s-button onClick={() => shopify.scanner.showCameraScanner()}>Scan label</s-button>
+            {me.me.owner && <s-button onClick={() => go({ name: 'settings' })}>Settings</s-button>}
           </s-stack>
           {error && <s-text tone="critical">{error}</s-text>}
           {!tickets && !error && <s-text>Loading boards…</s-text>}
@@ -351,12 +353,16 @@ function Ticket({ job, go, me }) {
   const [archived, setArchived] = useState(null);
   const [error, setError] = useState('');
   const [charge, setCharge] = useState('');
+  const [fee, setFee] = useState('');
+  const [agreed, setAgreed] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
   const show = (ticket) => {
     setT(ticket);
     setCharge(ticket.money.partnerCharge === null ? '' : (ticket.money.partnerCharge / 100).toFixed(2));
+    setFee(((ticket.money.shopFee ?? 0) / 100).toFixed(2));
+    setAgreed(ticket.money.agreedPrice === null ? '' : (ticket.money.agreedPrice / 100).toFixed(2));
   };
   useEffect(() => {
     api(`/api/tickets/${encodeURIComponent(job)}`)
@@ -477,9 +483,14 @@ function Ticket({ job, go, me }) {
             <s-stack direction="block" gap="small">
               <s-text>{`Keith ${money(m.partnerCharge)} + MOKU fee ${money(m.shopFee)}${m.agreedPrice !== null ? ` · agreed ${money(m.agreedPrice)}` : ''} · paid ${money(m.paid)}`}</s-text>
               {!closed && (
-                <s-stack direction="inline" gap="base">
-                  <s-text-field label="Keith's charge ($)" value={charge} onInput={(e) => setCharge(e.currentTarget.value)} />
-                  <s-button disabled={busy} onClick={() => act('price', { partnerCharge: charge.trim() || null }, 'Price saved')}>Save</s-button>
+                <s-stack direction="block" gap="small">
+                  <s-stack direction="inline" gap="base">
+                    <s-text-field label="Keith's charge ($)" value={charge} onInput={(e) => setCharge(e.currentTarget.value)} />
+                    <s-text-field label="MOKU fee ($)" value={fee} onInput={(e) => setFee(e.currentTarget.value)} />
+                    <s-text-field label="Agreed price ($, optional)" value={agreed} onInput={(e) => setAgreed(e.currentTarget.value)} />
+                  </s-stack>
+                  <s-text>Agreed price replaces Keith + fee. Leave it blank to use Keith + fee.</s-text>
+                  <s-button disabled={busy} onClick={() => act('price', { partnerCharge: charge.trim() || null, shopFee: fee.trim() || '0', agreedPrice: agreed.trim() || null }, 'Price saved')}>Save price</s-button>
                 </s-stack>
               )}
             </s-stack>
@@ -510,6 +521,89 @@ function Ticket({ job, go, me }) {
             <s-button disabled={busy} onClick={() => act('reprint', {}, 'Label sent')}>Reprint label</s-button>
             <s-button onClick={() => go({ name: 'home' })}>Done</s-button>
           </s-stack>
+        </s-stack>
+      </s-scroll-box>
+    </s-page>
+  );
+}
+
+// ---------------------------------------------------------------- settings
+// Owners only: the default MOKU fee for new jobs, and who works the desk.
+
+function Settings({ go }) {
+  const [data, setData] = useState(null);
+  const [fee, setFee] = useState('');
+  const [name, setName] = useState('');
+  const [confirm, setConfirm] = useState(null); // staff id waiting for a second tap
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const show = (d) => {
+    setData(d);
+    setFee((d.defaultShopFee / 100).toFixed(2));
+  };
+  useEffect(() => {
+    api('/api/settings').then(show).catch((e) => setError(e.message));
+  }, []);
+
+  async function run(path, body, done) {
+    setError('');
+    setBusy(true);
+    try {
+      show(await api(path, body));
+      setConfirm(null);
+      if (done) toast(done);
+      return true;
+    } catch (e) {
+      setError(e.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <s-page heading="Settings">
+      <s-scroll-box>
+        <s-stack direction="block" gap="base">
+          {!data && !error && <s-text>Loading…</s-text>}
+          {data && (
+            <s-section heading="Default MOKU fee">
+              <s-stack direction="block" gap="small">
+                <s-text>Added on top of Keith's charge for every new check-in. Jobs already checked in keep their fee.</s-text>
+                <s-stack direction="inline" gap="base">
+                  <s-text-field label="Fee ($)" value={fee} onInput={(e) => setFee(e.currentTarget.value)} />
+                  <s-button disabled={busy} onClick={() => run('/api/settings/fee', { fee: fee.trim() }, 'Default fee saved')}>Save fee</s-button>
+                </s-stack>
+              </s-stack>
+            </s-section>
+          )}
+          {data && (
+            <s-section heading={`Staff · ${data.staff.length}`}>
+              <s-stack direction="block" gap="small">
+                {data.staff.map((s) => (
+                  <s-stack key={s.id} direction="inline" gap="base">
+                    <s-text>{`${s.name}${s.owner ? ' · owner' : ''}${s.linked ? '' : ' · not set up on POS yet'}`}</s-text>
+                    {s.linked && !s.me && (
+                      <s-button disabled={busy} onClick={() => run(`/api/settings/staff/${s.id}/reset-link`, {}, `${s.name} will pick their name again`)}>Reset POS link</s-button>
+                    )}
+                    {!s.me && (confirm === s.id ? (
+                      <s-button tone="critical" disabled={busy} onClick={() => run(`/api/settings/staff/${s.id}/remove`, {}, `${s.name} removed`)}>{`Tap again to remove ${s.name}`}</s-button>
+                    ) : (
+                      <s-button disabled={busy} onClick={() => setConfirm(s.id)}>Remove</s-button>
+                    ))}
+                  </s-stack>
+                ))}
+                <s-stack direction="inline" gap="base">
+                  <s-text-field label="New staff name" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+                  <s-button disabled={busy || !name.trim()} onClick={async () => { if (await run('/api/settings/staff', { name: name.trim() }, `${name.trim()} added`)) setName(''); }}>Add</s-button>
+                </s-stack>
+                <s-text>Removed staff stay on the jobs they handled. New staff pick their name the first time they open the Repair Desk.</s-text>
+              </s-stack>
+            </s-section>
+          )}
+          {error && <s-text tone="critical">{error}</s-text>}
+          <s-button onClick={() => go({ name: 'home' })}>Done</s-button>
         </s-stack>
       </s-scroll-box>
     </s-page>

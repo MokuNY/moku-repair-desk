@@ -119,6 +119,41 @@ test('an owner can reset a wrong link', async () => {
   assert.equal((await call('/api/board', { member: '111' })).status, 409);
 });
 
+test('owner settings: default fee and staff list, owner only', async () => {
+  // Link Tom (owner) to POS account 900.
+  const r0 = await call('/api/me', { member: '900' });
+  const tomId = (await r0.json()).staff.find((s) => s.name === 'Tom Gleason').id;
+  assert.equal((await call('/api/pos/link', { member: '900', body: { staffId: tomId } })).status, 200);
+
+  // Emma (member 111, staff) can't open settings.
+  const emmaId = db.prepare(`SELECT id FROM staff WHERE name = 'Emma'`).get().id;
+  await call('/api/pos/link', { member: '111', body: { staffId: emmaId } });
+  assert.equal((await call('/api/settings', { member: '111' })).status, 403);
+
+  let s = await (await call('/api/settings/fee', { member: '900', body: { fee: '25' } })).json();
+  assert.equal(s.defaultShopFee, 2500);
+  const { customer } = await (await call('/api/customers', { member: '900', body: { firstName: 'Kai', lastName: 'Lee', phone: '646-555-0123' } })).json();
+  const t = await (await call('/api/tickets', { member: '900', body: { requestId: 'pos_req_feecheck00001', customer, board: "9'0 Log", repair: 'Rail' } })).json();
+  const d = await (await call(`/api/tickets/${t.jobNumber}`, { member: '900' })).json();
+  assert.equal(d.ticket.money.shopFee, 2500);
+  assert.equal((await call('/api/settings/fee', { member: '900', body: { fee: '-5' } })).status, 400);
+
+  s = await (await call('/api/settings/staff', { member: '900', body: { name: 'Maya' } })).json();
+  assert.ok(s.staff.some((x) => x.name === 'Maya'));
+  assert.equal((await call('/api/settings/staff', { member: '900', body: { name: 'maya' } })).status, 400);
+  const maya = s.staff.find((x) => x.name === 'Maya');
+  s = await (await call(`/api/settings/staff/${maya.id}/remove`, { member: '900', body: {} })).json();
+  assert.ok(!s.staff.some((x) => x.name === 'Maya'));
+  assert.equal((await call(`/api/settings/staff/${tomId}/remove`, { member: '900', body: {} })).status, 400); // not yourself
+
+  // Removing someone who is linked logs them out of the desk.
+  const emma = s.staff.find((x) => x.name === 'Emma');
+  await call(`/api/settings/staff/${emma.id}/remove`, { member: '900', body: {} });
+  const gone = await call('/api/board', { member: '111' });
+  assert.equal(gone.status, 409);
+  assert.ok(!(await gone.json()).staff.some((x) => x.name === 'Emma'));
+});
+
 test('without POS settings the server refuses bearer calls', async () => {
   const app = createApp({ db, shopId: shop.id, sessions: sessionManager('y'.repeat(40), { secure: false }), customers: demoCustomers(db, shop.id), baseUrl: 'https://desk.test' });
   const s = http.createServer(app).listen(0);

@@ -18,8 +18,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { openDb } from './db.js';
-import { getShopByDomain, getShop, PermissionError } from './shops.js';
-import { listStaff, getStaff, checkPin, setPin } from './staff.js';
+import { getShopByDomain, getShop, PermissionError, updateShopSettings } from './shops.js';
+import { listStaff, getStaff, checkPin, setPin, createStaff, deactivateStaff, requirePermission } from './staff.js';
 import { createTicket, changeStatus, handOver, ticketView, listOpenTickets, getTicketByJobNumber, STATUS_LABELS } from './tickets.js';
 import { money, setPrices, recordPayment, logCall } from './pricing.js';
 import { requestLabel, sendLabel, labelServerClient } from './labels.js';
@@ -28,7 +28,7 @@ import { toCents } from './money.js';
 import { normalizeUsPhone, formatUsPhone } from './phone.js';
 import { ShopifyClient, ShopifyError } from './shopify.js';
 import { sessionManager } from './sessions.js';
-import { verifyPosToken, staffForPosMember, unlinkedStaff, linkPosMember, unlinkSelf, PosAuthError } from './pos-auth.js';
+import { verifyPosToken, staffForPosMember, unlinkedStaff, linkPosMember, unlinkSelf, unlinkPosMember, PosAuthError } from './pos-auth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP_HTML = fs.readFileSync(path.join(here, 'app.html'), 'utf8');
@@ -195,6 +195,38 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
         return json(res, 200, { label: await printLabel(me, t.id, 'reprint'), ticket: detail(t.id) });
       } else return json(res, 404, { error: 'Not found' });
       return json(res, 200, { ticket: detail(t.id) });
+    }
+
+    // ------------------------------------------------ owner settings
+    if (p === '/api/settings' || p.startsWith('/api/settings/')) {
+      requirePermission(me, 'settings.manage');
+      const settings = () => ({
+        defaultShopFee: getShop(db, shopId).default_shop_fee_cents ?? 0,
+        staff: listStaff(db, shopId).filter((s) => s.active === 1)
+          .map((s) => ({ id: s.id, name: s.name, owner: s.role === 'owner', linked: Boolean(s.shopify_staff_member_id), me: s.id === me.id })),
+      });
+      if (req.method === 'GET' && p === '/api/settings') return json(res, 200, settings());
+      if (req.method !== 'POST') return json(res, 405, { error: 'Use POST' });
+      if (p === '/api/settings/fee') {
+        updateShopSettings(db, shopId, me, { defaultShopFeeCents: toCents(body.fee) });
+        return json(res, 200, settings());
+      }
+      if (p === '/api/settings/staff') {
+        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
+        if (!name || name.length > 60) throw new RangeError('Type a name (up to 60 letters)');
+        if (listStaff(db, shopId).some((s) => s.active === 1 && s.name.toLowerCase() === name.toLowerCase())) throw new RangeError(`${name} is already on the list`);
+        createStaff(db, shopId, me, { name });
+        return json(res, 200, settings());
+      }
+      const sm = /^\/api\/settings\/staff\/(\d+)\/(remove|reset-link)$/.exec(p);
+      if (sm && sm[2] === 'remove') {
+        deactivateStaff(db, shopId, me, Number(sm[1]));
+        return json(res, 200, settings());
+      }
+      if (sm && sm[2] === 'reset-link') {
+        unlinkPosMember(db, shopId, me, Number(sm[1]));
+        return json(res, 200, settings());
+      }
     }
 
     return json(res, 404, { error: 'Not found' });

@@ -54,6 +54,27 @@ export function createStaff(db, shopId, actor, { name, email = null, role = 'sta
   });
 }
 
+/**
+ * Remove a staff member from the Repair Desk. Their name stays on past jobs
+ * (history is never rewritten); they just can't sign in or be picked any more.
+ */
+export function deactivateStaff(db, shopId, actor, staffId) {
+  if (actor?.shop_id !== shopId) throw new PermissionError('Not allowed: staff.manage');
+  requirePermission(actor, 'staff.manage');
+  return tx(db, () => {
+    const s = getStaff(db, shopId, Number(staffId));
+    if (!s) throw new RangeError('No such staff member');
+    if (s.id === actor.id) throw new RangeError("You can't remove yourself");
+    if (s.role === 'owner') {
+      const owners = db.prepare(`SELECT COUNT(*) AS n FROM staff WHERE shop_id = ? AND role = 'owner' AND active = 1`).get(shopId).n;
+      if (owners <= 1) throw new RangeError('The shop needs at least one owner');
+    }
+    db.prepare('UPDATE staff SET active = 0, shopify_staff_member_id = NULL WHERE shop_id = ? AND id = ?').run(shopId, s.id);
+    recordEvent(db, shopId, { staffId: actor.id, action: 'staff.removed', entityType: 'staff', entityId: s.id, detail: { name: s.name } });
+    return getStaff(db, shopId, s.id);
+  });
+}
+
 /** Look up staff only within the given shop. */
 export function getStaff(db, shopId, staffId) {
   return db.prepare('SELECT * FROM staff WHERE shop_id = ? AND id = ?').get(shopId, staffId) ?? null;
