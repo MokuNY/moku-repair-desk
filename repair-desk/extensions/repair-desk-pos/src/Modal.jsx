@@ -383,6 +383,23 @@ function Ticket({ job, go, me }) {
     setBusy(false);
   }
 
+  // Reprint shows what actually happened at the printer, not just "sent".
+  async function reprint() {
+    setError('');
+    setBusy(true);
+    try {
+      const r = await api(`/api/tickets/${job}/reprint`, {});
+      if (r.ticket) show(r.ticket);
+      const l = r.label;
+      if (l?.status === 'sent') toast(l.warning ? `Label printed. ${l.warning}` : 'Label printed');
+      else if (l?.status === 'off') setError('Label printing is off.');
+      else setError(`Label didn't print: ${l?.error || 'no answer from the label server'}`);
+    } catch (e) {
+      setError(e.message);
+    }
+    setBusy(false);
+  }
+
   async function addToCart() {
     const price = t.money.balance ?? t.money.price;
     if (!(price > 0)) return setError("Enter Keith's charge first.");
@@ -518,7 +535,7 @@ function Ticket({ job, go, me }) {
 
           {error && <s-text tone="critical">{error}</s-text>}
           <s-stack direction="inline" gap="base">
-            <s-button disabled={busy} onClick={() => act('reprint', {}, 'Label sent')}>Reprint label</s-button>
+            <s-button disabled={busy} onClick={reprint}>Reprint label</s-button>
             <s-button onClick={() => go({ name: 'home' })}>Done</s-button>
           </s-stack>
         </s-stack>
