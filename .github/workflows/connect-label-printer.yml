@@ -1,0 +1,76 @@
+# Connects the Repair Desk TEST server to the shop's label printer server so
+# "Check in and print label" and "Reprint label" print on the ZD411.
+#
+# Run it by hand: Actions tab -> "Connect label printer (test)" -> Run workflow.
+# It makes a new shared password, gives it to both Fly.io apps, and restarts
+# them. Running it again just replaces the password on both, so it's safe to
+# repeat. The password is never shown or stored anywhere but Fly.io secrets.
+#
+# Note: the label server is the LIVE one. Test check-ins print real labels at
+# the counter. The label server restarts for a few seconds; the printer
+# reconnects on its own.
+name: Connect label printer (test)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "I understand test labels will print on the shop's ZD411"
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: connect-label-printer
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      LABEL_APP: moku-labels-b228fd
+      DESK_APP: moku-repair-desk-test
+    steps:
+      - name: Check
+        run: |
+          if [ "${{ inputs.confirm }}" != "true" ]; then echo "::error::Tick the confirm box to run this."; exit 1; fi
+          if [ -z "$FLY_API_TOKEN" ]; then echo "::error::Add the FLY_API_TOKEN repository secret first."; exit 1; fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Check both apps are reachable with this Fly token
+        run: |
+          for app in "$LABEL_APP" "$DESK_APP"; do
+            if ! flyctl status -a "$app" >/dev/null 2>&1; then
+              echo "::error::The Fly token can't manage $app. Use an organization token that covers both apps."
+              exit 1
+            fi
+          done
+
+      - name: Set the shared password on both apps
+        run: |
+          TOKEN="$(openssl rand -hex 32)"
+          echo "::add-mask::$TOKEN"
+          printf 'REPAIR_DESK_TOKEN=%s\n' "$TOKEN" | flyctl secrets import -a "$LABEL_APP" >/dev/null
+          printf 'REPAIR_DESK_TOKEN=%s\nLABEL_SERVER_URL=%s\n' "$TOKEN" "https://$LABEL_APP.fly.dev" \
+            | flyctl secrets import -a "$DESK_APP" >/dev/null
+          echo "Password set on $LABEL_APP and $DESK_APP; both apps restarted."
+
+      - name: Verify
+        run: |
+          # Without a password the label server should now answer 401 (route on), not 404 (route off).
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$LABEL_APP.fly.dev/api/repair-label" || true)
+            [ "$code" = "401" ] && break
+            sleep 6
+          done
+          if [ "$code" != "401" ]; then echo "::error::Label server answered $code; expected 401. Check its logs in Fly.io."; exit 1; fi
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fsS "https://$DESK_APP.fly.dev/health" >/dev/null && break
+            sleep 6
+          done
+          echo "Connected. Reopen the Repair Desk tile in POS: 'label printing off' should be gone."
