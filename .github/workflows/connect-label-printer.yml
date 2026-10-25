@@ -62,13 +62,19 @@ jobs:
 
       - name: Verify
         run: |
-          # Without a password the label server should now answer 401 (route on), not 404 (route off).
+          # With a wrong password the repair-label route must answer "Not authorized".
+          # (An old label server without the route answers "Malformed session token":
+          # run "Deploy label server (live)" first.)
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$LABEL_APP.fly.dev/api/repair-label" || true)
-            [ "$code" = "401" ] && break
+            body=$(curl -s -X POST -H 'Authorization: Bearer wrong' -H 'Content-Type: application/json' -d '{}' "https://$LABEL_APP.fly.dev/api/repair-label" || true)
+            case "$body" in *"Not authorized"*) break ;; esac
             sleep 6
           done
-          if [ "$code" != "401" ]; then echo "::error::Label server answered $code; expected 401. Check its logs in Fly.io."; exit 1; fi
+          case "$body" in
+            *"Not authorized"*) ;;
+            *"Malformed session token"*) echo "::error::Password set, but the label server is an old version without repair labels. Run 'Deploy label server (live)'."; exit 1 ;;
+            *) echo "::error::Label server answered: $body"; exit 1 ;;
+          esac
           for i in 1 2 3 4 5 6 7 8 9 10; do
             curl -fsS "https://$DESK_APP.fly.dev/health" >/dev/null && break
             sleep 6

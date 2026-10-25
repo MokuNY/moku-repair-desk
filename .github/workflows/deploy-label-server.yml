@@ -1,0 +1,69 @@
+# Deploys label-printer/server to the LIVE label server (moku-labels-b228fd),
+# the one the ZD411 is connected to. Run it by hand: Actions tab ->
+# "Deploy label server (live)" -> Run workflow.
+#
+# Secrets (Shopify keys, printer tokens, REPAIR_DESK_TOKEN) live in Fly.io and
+# are not touched. The server restarts for a few seconds; the printer
+# reconnects on its own.
+name: Deploy label server (live)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Deploy to the LIVE label server (price labels pause for a few seconds)"
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: label-server-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        run: |
+          if [ "${{ inputs.confirm }}" != "true" ]; then echo "::error::Tick the confirm box to run this."; exit 1; fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+        working-directory: label-printer/server
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP: moku-labels-b228fd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+      - name: Deploy
+        working-directory: label-printer/server
+        # One machine: the printer's WebSocket and the repair-label retry memory live in it.
+        run: flyctl deploy -a "$APP" --remote-only --ha=false --wait-timeout 300
+
+      - name: Verify
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fsS "https://$APP.fly.dev/health" >/dev/null && break
+            sleep 6
+          done
+          # With a wrong password, the repair-label route must answer "Not authorized".
+          # An old server answers "Malformed session token"; a server without
+          # REPAIR_DESK_TOKEN answers "Not found".
+          body=$(curl -s -X POST -H 'Authorization: Bearer wrong' -H 'Content-Type: application/json' -d '{}' "https://$APP.fly.dev/api/repair-label" || true)
+          echo "Label server answered: $body"
+          case "$body" in
+            *"Not authorized"*) echo "Repair labels are on." ;;
+            *"Not found"*) echo "::error::Deployed, but REPAIR_DESK_TOKEN isn't set. Run 'Connect label printer (test)'."; exit 1 ;;
+            *) echo "::error::Deployed, but the repair-label route isn't answering as expected."; exit 1 ;;
+          esac
