@@ -1,0 +1,8 @@
+# Continuous backup of the Repair Desk database to Fly.io object storage (Tigris).
+# BUCKET_NAME and the access keys are set as Fly secrets by `fly storage create`.
+# Every change is shipped within about a second; restore with
+#   litestream restore -config /app/litestream.yml -o /tmp/check.sqlite /data/repair-desk.sqlite
+dbs:
+  - path: ${DATABASE_PATH}
+    replica:
+      url: s3://${BUCKET_NAME}/repair-desk?endpoint=fly.storage.tigris.dev&region=auto

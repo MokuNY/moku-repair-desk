@@ -64,6 +64,6 @@ jobs:
           echo "Label server answered: $body"
           case "$body" in
             *"Not authorized"*) echo "Repair labels are on." ;;
-            *"Not found"*) echo "::error::Deployed, but REPAIR_DESK_TOKEN isn't set. Run 'Connect label printer (test)'."; exit 1 ;;
+            *"Not found"*) echo "::error::Deployed, but REPAIR_DESK_TOKEN isn't set. Run 'Connect label printer'."; exit 1 ;;
             *) echo "::error::Deployed, but the repair-label route isn't answering as expected."; exit 1 ;;
           esac

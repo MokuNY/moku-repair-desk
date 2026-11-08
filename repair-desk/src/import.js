@@ -17,6 +17,7 @@ import { getShop, PermissionError } from './shops.js';
 import { requirePermission } from './staff.js';
 import { addEvent } from './tickets.js';
 import { recordEvent } from './audit.js';
+import { historyReport } from './history.js';
 
 export const FORMAT = 'moku-ding-repair-v1';
 
@@ -239,6 +240,8 @@ function analyze(db, shopId, { fileName, text, customerLinks = {} }) {
 
   plan.totals = totals;
   plan.nextJobNumber = Math.max(shop.next_job_number, maxJob + 1);
+  // How old jobs will show up in customer histories (by phone), for the owner to check.
+  plan.history = historyReport(plan);
   return plan;
 }
 

@@ -50,18 +50,18 @@ const client = (fake, extra = {}) =>
 
 const shopifyCustomer = {
   id: 'gid://shopify/Customer/1',
-  displayName: 'Brendan McCarthy',
-  firstName: 'Brendan',
-  lastName: 'McCarthy',
-  defaultPhoneNumber: { phoneNumber: '+15167432459' },
+  displayName: 'Jordan Reyes',
+  firstName: 'Jordan',
+  lastName: 'Reyes',
+  defaultPhoneNumber: { phoneNumber: '+15165550159' },
   defaultEmailAddress: null,
   numberOfOrders: '3',
 };
 
 test('search: phone, email and name become Shopify search syntax', () => {
-  assert.equal(customerSearchQuery('516743-2459'), 'phone:+15167432459');
+  assert.equal(customerSearchQuery('516555-0159'), 'phone:+15165550159');
   assert.equal(customerSearchQuery('kev@example.com'), 'email:"kev@example.com"');
-  assert.equal(customerSearchQuery('Brendan McCarthy'), '"Brendan" "McCarthy"');
+  assert.equal(customerSearchQuery('Jordan Reyes'), '"Jordan" "Reyes"');
   assert.equal(customerSearchQuery('a'), '');
   // Typed text can't inject Shopify search filters: quotes and colons are stripped.
   assert.equal(customerSearchQuery('x" OR tag:vip'), '"x" "OR" "tagvip"');
@@ -73,18 +73,18 @@ test('client: gets a token once, sends it, maps customers', async () => {
   const responses = [f.reply(200, { data: { customers: { nodes: [shopifyCustomer] } } }), f.reply(200, { data: { customers: { nodes: [] } } })];
   const fake = fakeShopify({ responses });
   const c = client(fake);
-  const found = await c.searchCustomers('516-743-2459');
+  const found = await c.searchCustomers('516-555-0159');
   await c.searchCustomers('nobody here');
   assert.equal(fake.tokenCount(), 1);
   assert.deepEqual(found, [
-    { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Brendan McCarthy', firstName: 'Brendan', lastName: 'McCarthy', phoneE164: '+15167432459', email: null, numberOfOrders: 3 },
+    { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Jordan Reyes', firstName: 'Jordan', lastName: 'Reyes', phoneE164: '+15165550159', email: null, numberOfOrders: 3 },
   ]);
   const gql = fake.calls.find((x) => x.url.includes('/graphql.json'));
   assert.match(gql.url, /\/admin\/api\/2026-10\/graphql\.json$/);
   assert.equal(gql.init.headers['X-Shopify-Access-Token'], 'shpat_test_1');
   const sent = JSON.parse(gql.init.body);
   assert.equal(sent.query, SEARCH_CUSTOMERS);
-  assert.equal(sent.variables.q, 'phone:+15167432459');
+  assert.equal(sent.variables.q, 'phone:+15165550159');
   const tokenCall = fake.calls[0];
   assert.match(tokenCall.init.body, /grant_type=client_credentials/);
 });
@@ -141,18 +141,18 @@ test('client: create customer validates, normalizes phone, surfaces Shopify erro
     responses: [
       (u, init) => {
         const v = JSON.parse(init.body).variables.input;
-        assert.equal(v.phone, '+15163983139');
-        return fake.reply(200, { data: { customerCreate: { customer: { ...shopifyCustomer, id: 'gid://shopify/Customer/9', displayName: 'Russell Carpenter' }, userErrors: [] } } });
+        assert.equal(v.phone, '+15165550139');
+        return fake.reply(200, { data: { customerCreate: { customer: { ...shopifyCustomer, id: 'gid://shopify/Customer/9', displayName: 'Casey Harbor' }, userErrors: [] } } });
       },
       fake.reply(200, { data: { customerCreate: { customer: null, userErrors: [{ field: ['phone'], message: 'Phone has already been taken' }] } } }),
     ],
   });
   const c = client(f2);
-  const made = await c.createCustomer({ firstName: 'Russell', lastName: 'Carpenter', phone: '516.398.3139' });
+  const made = await c.createCustomer({ firstName: 'Casey', lastName: 'Harbor', phone: '516.555.0139' });
   assert.equal(made.shopifyCustomerGid, 'gid://shopify/Customer/9');
-  await assert.rejects(c.createCustomer({ firstName: 'R', phone: '516.398.3139' }), /already been taken/);
+  await assert.rejects(c.createCustomer({ firstName: 'R', phone: '516.555.0139' }), /already been taken/);
   await assert.rejects(c.createCustomer({ firstName: 'R', phone: '12' }), /not a valid US number/);
-  await assert.rejects(c.createCustomer({ phone: '516.398.3139' }), /first or last name/);
+  await assert.rejects(c.createCustomer({ phone: '516.555.0139' }), /first or last name/);
 });
 
 test('client: network failure is a ShopifyError, not a crash', async () => {
@@ -169,7 +169,7 @@ function setup() {
   const emma = createStaff(db, shop.id, tom, { name: 'Emma' });
   const keith = createPartner(db, shop.id, tom, { name: 'Keith' });
   updateShopSettings(db, shop.id, tom, { defaultPartnerId: keith.id });
-  const customer = { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Brendan McCarthy', firstName: 'Brendan', lastName: 'McCarthy', phoneE164: '+15167432459' };
+  const customer = { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Jordan Reyes', firstName: 'Jordan', lastName: 'Reyes', phoneE164: '+15165550159' };
   return { db, shop, tom, emma, keith, customer };
 }
 
@@ -183,7 +183,7 @@ test('intake: creates MOKU-0041 with Keith and the $20 fee, logs it', () => {
   assert.equal(ticket.shop_fee_cents, 2000);
   assert.equal(ticket.partner_charge_cents, null);
   const v = ticketView(db, shop.id, ticket.id);
-  assert.equal(v.customer.display_name, 'Brendan McCarthy');
+  assert.equal(v.customer.display_name, 'Jordan Reyes');
   assert.equal(v.partner.name, 'Keith');
   assert.equal(v.statusLabel, 'Dropped off');
   assert.equal(v.events[0].to_status, 'received');
@@ -204,10 +204,10 @@ test('intake: the same request twice makes one ticket and one job number', () =>
 test('intake: one customer record per Shopify customer, refreshed on each visit', () => {
   const { db, shop, emma, customer } = setup();
   createTicket(db, shop.id, emma, { requestId: rid(), customer, boardDescription: 'A', repairRequested: 'x' });
-  createTicket(db, shop.id, emma, { requestId: rid(), customer: { ...customer, displayName: 'Brendan McCarthy Jr' }, boardDescription: 'B', repairRequested: 'y' });
+  createTicket(db, shop.id, emma, { requestId: rid(), customer: { ...customer, displayName: 'Jordan Reyes Jr' }, boardDescription: 'B', repairRequested: 'y' });
   const rows = db.prepare('SELECT * FROM customers').all();
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].display_name, 'Brendan McCarthy Jr');
+  assert.equal(rows[0].display_name, 'Jordan Reyes Jr');
 });
 
 test('intake: rejects missing board, repair, customer or a bad request id', () => {

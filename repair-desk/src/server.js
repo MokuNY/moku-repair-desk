@@ -10,6 +10,8 @@
 //   SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET   Dev Dashboard app; unset = demo customers
 //   LABEL_SERVER_URL / REPAIR_DESK_TOKEN        label server; unset = printing off
 //   DEMO=1              allow demo customers (never with real Shopify credentials)
+//   EXPORT_KEY          32+ characters; turns on GET /export/repairs.csv for the
+//                       iPad's nightly copy (sent in the X-Export-Key header)
 
 import fs from 'node:fs';
 import http from 'node:http';
@@ -23,7 +25,8 @@ import { listStaff, getStaff, checkPin, setPin, createStaff, deactivateStaff, re
 import { createTicket, changeStatus, handOver, ticketView, listOpenTickets, getTicketByJobNumber, STATUS_LABELS } from './tickets.js';
 import { money, setPrices, recordPayment, logCall } from './pricing.js';
 import { requestLabel, sendLabel, labelServerClient } from './labels.js';
-import { searchArchive } from './records.js';
+import { searchArchive, exportRecords } from './records.js';
+import { findTickets, customerHistory } from './history.js';
 import { toCents } from './money.js';
 import { normalizeUsPhone, formatUsPhone } from './phone.js';
 import { ShopifyClient, ShopifyError } from './shopify.js';
@@ -42,7 +45,8 @@ const MAX_BODY = 64 * 1024;
  * Build the request handler. Everything it needs is passed in, so tests can
  * run it against an in-memory database, a fake Shopify and a fake printer.
  */
-export function createApp({ db, shopId, sessions, customers, printer = null, baseUrl, timezone = 'America/New_York', pos = null }) {
+export function createApp({ db, shopId, sessions, customers, printer = null, baseUrl, timezone = 'America/New_York', pos = null, exportKey = '' }) {
+  if (exportKey && exportKey.length < 32) throw new RangeError('EXPORT_KEY must be at least 32 characters');
   const shop = getShop(db, shopId);
   if (!shop) throw new RangeError('Shop not set up in this database');
 
@@ -57,6 +61,7 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
       res.writeHead(200, { 'Content-Type': asset[1].endsWith('.ttf') ? 'font/ttf' : 'image/png', 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
       return res.end(ASSETS[asset[1]]);
     }
+    if (req.method === 'GET' && p === '/export/repairs.csv') return nightlyExport(req, res);
     if (!p.startsWith('/api/')) return json(res, 404, { error: 'Not found' });
 
     // The POS extension calls from Shopify's CDN with a bearer token (never a
@@ -149,7 +154,16 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
 
     if (req.method === 'GET' && p === '/api/find') {
       const q = String(url.searchParams.get('q') || '').trim();
-      return json(res, 200, { open: findOpen(q), archive: q.length >= 2 ? searchArchive(db, shopId, me, q, { limit: 15 }).map(archiveRow) : [] });
+      const { open, done } = findTickets(db, shopId, q);
+      return json(res, 200, { open: open.map(summary), done: done.map(summary), archive: q.length >= 2 ? searchArchive(db, shopId, me, q, { limit: 15 }).map(archiveRow) : [] });
+    }
+
+    // Every repair for one customer (shown at check-in once the customer is picked).
+    if (req.method === 'GET' && p === '/api/history') {
+      const gid = url.searchParams.get('gid') || null;
+      const phone = url.searchParams.get('phone') || null;
+      if (!gid && !phone) return json(res, 400, { error: 'Pick a customer first' });
+      return json(res, 200, customerHistory(db, shopId, { shopifyCustomerGid: gid, phone }));
     }
 
     if (req.method === 'GET' && p === '/api/customers') {
@@ -264,18 +278,31 @@ export function createApp({ db, shopId, sessions, customers, printer = null, bas
       calls: calls.map((c) => ({ outcome: c.outcome, note: c.note, at: c.created_at, by: c.staff_id ? names.get(c.staff_id) : 'Imported' })),
       history: v.events.filter((e) => e.kind === 'status').map((e) => ({ to: STATUS_LABELS[e.to_status], at: e.created_at, by: e.staff_id ? names.get(e.staff_id) : 'Imported' })),
       label,
+      previousRepairs: customerHistory(db, shopId, { customerId: v.ticket.customer_id, excludeJob: v.ticket.job_number }),
     };
   }
 
-  function findOpen(q) {
-    const term = q.toLowerCase();
-    const phone = normalizeUsPhone(q);
-    if (term.length < 2) return [];
-    return listOpenTickets(db, shopId)
-      .filter((t) => t.job_number.toLowerCase().includes(term) || (phone && t.customer_phone === phone) || t.customer_name.toLowerCase().includes(term) || t.board_description.toLowerCase().includes(term))
-      .slice(0, 15)
-      .map(summary);
+  // The iPad's nightly copy for Numbers: the short (13-column) spreadsheet,
+  // every job old and new. Off unless EXPORT_KEY is set; the key travels in a
+  // header so it never lands in a URL or a log line.
+  function nightlyExport(req, res) {
+    if (!exportKey) return json(res, 404, { error: 'Not found' });
+    const given = crypto.createHash('sha256').update(String(req.headers['x-export-key'] || '')).digest();
+    const want = crypto.createHash('sha256').update(exportKey).digest();
+    if (!crypto.timingSafeEqual(given, want)) return json(res, 401, { error: 'Not authorized' });
+    const owner = listStaff(db, shopId).find((s) => s.role === 'owner' && s.active === 1);
+    if (!owner) return json(res, 409, { error: 'No owner set up' });
+    const { csv, rows } = exportRecords(db, shopId, owner, { via: 'nightly copy' });
+    const day = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="Moku Repair Desk ${day}.csv"`,
+      'Cache-Control': 'no-store',
+      'X-Rows': String(rows),
+    });
+    return res.end('\uFEFF' + csv); // BOM so Numbers reads accents and dashes correctly
   }
+
 
   const archiveRow = (a) => ({
     jobNumber: a.job_number, customer: a.customer_name, phone: a.phone_e164 ? formatUsPhone(a.phone_e164) : a.raw['Phone'], board: a.board, repair: a.repair,
@@ -365,9 +392,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const publicUrl = env.PUBLIC_URL || `http://localhost:${env.PORT || 8080}`;
   const sessions = sessionManager(env.SESSION_SECRET || (env.DEMO === '1' ? crypto.randomBytes(32).toString('hex') : ''), { secure: publicUrl.startsWith('https://') });
   const pos = shopifyReady ? { clientId: env.SHOPIFY_CLIENT_ID, clientSecret: env.SHOPIFY_CLIENT_SECRET } : null;
-  const app = createApp({ db, shopId: shop.id, sessions, customers, printer, baseUrl: publicUrl, timezone: shop.timezone, pos });
+  const app = createApp({ db, shopId: shop.id, sessions, customers, printer, baseUrl: publicUrl, timezone: shop.timezone, pos, exportKey: env.EXPORT_KEY || '' });
   http.createServer(app).listen(Number(env.PORT || 8080), () => {
-    console.log(`[repair-desk] ${shop.name} on :${env.PORT || 8080} · customers: ${shopifyReady ? 'Shopify' : 'demo'} · printing: ${printer ? 'on' : 'off'}`);
+    console.log(`[repair-desk] ${shop.name} on :${env.PORT || 8080} · customers: ${shopifyReady ? 'Shopify' : 'demo'} · printing: ${printer ? 'on' : 'off'} · nightly copy: ${env.EXPORT_KEY ? 'on' : 'off'}`);
   });
 }
 

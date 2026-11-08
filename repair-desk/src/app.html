@@ -243,7 +243,7 @@ function jobCard(t) {
 function checkIn() {
   const requestId = rid();
   let chosen = null;
-  const q = h('input', { type: 'search', placeholder: '516 555 0101 or Brendan McCarthy', autocomplete: 'off', inputmode: 'search', 'aria-label': 'Find customer' });
+  const q = h('input', { type: 'search', placeholder: '516 555 0101 or Jordan Reyes', autocomplete: 'off', inputmode: 'search', 'aria-label': 'Find customer' });
   const results = h('div', { class: 'list' });
   const custErr = h('div', { class: 'err' });
   const custBox = h('div', {});
@@ -260,8 +260,11 @@ function checkIn() {
   }
   function choose(c) {
     chosen = c;
+    const past = h('div', {});
     custBox.replaceChildren(h('div', { class: 'ok row' }, h('span', { style: 'flex:1' }, c.displayName + (c.phoneE164 ? ' · ' + fmtPhone(c.phoneE164) : '')),
-      h('button', { class: 'btn', type: 'button', onclick: () => { chosen = null; custBox.replaceChildren(q, results, custErr); q.focus(); } }, 'Change')));
+      h('button', { class: 'btn', type: 'button', onclick: () => { chosen = null; custBox.replaceChildren(q, results, custErr); q.focus(); } }, 'Change')), past);
+    const qs = new URLSearchParams({ gid: c.shopifyCustomerGid || '', ...(c.phoneE164 ? { phone: c.phoneE164 } : {}) });
+    api('/api/history?' + qs).then((hist) => past.replaceChildren(historyCard(hist, 'Earlier repairs'))).catch(() => {});
     $('#board').focus();
   }
   function newCustomer() {
@@ -318,10 +321,11 @@ function find(pickup) {
     try {
       const term = q.value.trim();
       if (term.length < 2) return initial();
-      const { open, archive } = await api('/api/find?q=' + encodeURIComponent(term));
+      const { open, done, archive } = await api('/api/find?q=' + encodeURIComponent(term));
       const list = pickup ? open.filter((t) => t.status === 'ready_for_pickup') : open;
       out.replaceChildren(h('h2', {}, pickup ? 'Ready for pickup' : 'In the shop'), list.length ? h('div', { class: 'cols' }, list.map(jobCard)) : h('div', { class: 'empty' }, 'No open boards match.'),
-        !pickup && h('h2', {}, 'Old repairs'), !pickup && (archive.length ? archive.map(oldCard) : h('div', { class: 'empty' }, 'No old repairs match.')));
+        !pickup && h('h2', {}, 'Picked up'), !pickup && (done.length ? h('div', { class: 'cols' }, done.map(jobCard)) : h('div', { class: 'empty' }, 'No finished repairs match.')),
+        !pickup && h('h2', {}, 'From the old spreadsheet'), !pickup && (archive.length ? h('div', { class: 'cols' }, archive.map(oldCard)) : h('div', { class: 'empty' }, 'No old repairs match.')));
     } catch (e) { fail(err, e); }
   }
   async function initial() {
@@ -338,6 +342,17 @@ function oldCard(a) {
     h('div', { class: 'nm' }, a.customer || 'No name', a.phone ? ' · ' + a.phone : ''), h('div', { class: 'bd' }, [a.board, a.repair].filter(Boolean).join(' — ')),
     h('div', { class: 'meta' }, a.received && h('span', { class: 'pill' }, 'In ' + a.received), a.pickedUp && h('span', { class: 'pill' }, 'Out ' + a.pickedUp),
       a.price && h('span', { class: 'pill' }, a.price + ' · ' + a.payment)));
+}
+// A customer's other repairs, newest first. Tapping one opens it (old ones read-only).
+function historyCard(hist, title) {
+  if (!hist || !hist.count) return h('div', { class: 'muted', style: 'margin-top:8px' }, 'First repair with us.');
+  const day = (d) => (d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
+  return h('div', { class: 'card', style: 'margin-top:10px' },
+    h('div', { class: 'muted' }, `${title} · ${hist.count}` + (hist.spentCents ? ` · ${money(hist.spentCents)} spent` : '')),
+    h('ul', { class: 'calls' }, hist.repairs.slice(0, 12).map((r) => h('li', {},
+      h('a', { href: '#/t/' + r.jobNumber, style: 'color:inherit' }, h('b', {}, r.jobNumber)), ' · ', [r.board, r.repair].filter(Boolean).join(' — ') || '—',
+      h('div', { class: 'when' }, [day(r.receivedOn), r.status, r.price !== null && r.price !== undefined ? money(r.price) : ''].filter(Boolean).join(' · '))))),
+    hist.count > 12 && h('div', { class: 'muted' }, `and ${hist.count - 12} more: search their name or phone.`));
 }
 
 // ---------- ticket
@@ -422,7 +437,7 @@ async function ticket(job) {
           h('dl', { class: 'kv' }, h('dt', {}, 'Board'), h('dd', {}, t.board || '—'), h('dt', {}, "What's wrong"), h('dd', {}, t.repair || '—'),
             h('dt', {}, 'Notes'), h('dd', {}, t.notes || '—'), h('dt', {}, 'Checked in'), h('dd', {}, `${when(t.receivedAt)} · ${t.acceptedBy || ''}`),
             h('dt', {}, 'Repairer'), h('dd', {}, t.partner))),
-          h('div', { style: 'height:16px' }), callsCard),
+          h('div', { style: 'height:16px' }), callsCard, historyCard(t.previousRepairs, 'Other repairs for this customer')),
         h('div', {}, moneyCard,
           h('div', { class: 'row', style: 'margin-top:14px' },
             h('button', { class: 'btn', type: 'button', onclick: async () => { err.textContent = ''; try { const r = await api(`/api/tickets/${t.jobNumber}/reprint`, {}); sessionStorage.setItem('flash', r.label.status === 'sent' ? 'Label printed.' : r.label.status === 'off' ? 'Label printing is off here.' : `Label didn't print: ${r.label.error}`); render(r.ticket); } catch (e) { fail(err, e); } } }, 'Reprint label'),

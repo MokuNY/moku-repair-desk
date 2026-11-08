@@ -170,10 +170,10 @@ const ticketLabel = (over = {}) => ({
   idempotencyKey: crypto.randomBytes(12).toString('base64url'),
   label: {
     jobNumber: 'MOKU-0041',
-    customerName: 'Brendan M.',
+    customerName: 'Jordan R.',
     board: "9'0 Fish Stix",
     received: 'Oct 17',
-    phoneLast4: '+1 516 743 2459',
+    phoneLast4: '+1 516 555 0159',
     repair: 'New center longboard fin box only',
     url: 'https://repair-desk-test.fly.dev/t/MOKU-0041',
     ...over,
@@ -206,8 +206,8 @@ test('repair label: QR code, job number, last four digits only', async () => {
   assert.match(zpl, /\^PW406\^LL203/); // label size comes from the same LABEL_* settings as price labels
   assert.match(zpl, /\^BQN,2,4\^FDMA,https:\/\/repair-desk-test\.fly\.dev\/t\/MOKU-0041\^FS/);
   assert.match(zpl, /MOKU-0041/);
-  assert.match(zpl, /Brendan M\./);
-  assert.match(zpl, /In Oct 17 · ph \.\.\.2459/); // ASCII + Latin-1 only: safe in the printer font
+  assert.match(zpl, /Jordan R\./);
+  assert.match(zpl, /In Oct 17 · ph \.\.\.0159/); // ASCII + Latin-1 only: safe in the printer font
   assert.doesNotMatch(zpl, /516|743/); // never the full phone number
   assert.match(zpl, /\^PQ1,0,1,Y/);
   assert.doesNotMatch(zpl, /~DG/); // no logo download

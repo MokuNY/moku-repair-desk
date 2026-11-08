@@ -200,6 +200,26 @@ function JobButton({ t, go }) {
   );
 }
 
+// A customer's other repairs, newest first. App jobs open their ticket; old
+// spreadsheet jobs open read-only.
+function PastRepairs({ hist, heading, go }) {
+  if (!hist) return null;
+  if (!hist.count) return <s-text>First repair with us.</s-text>;
+  const day = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '?');
+  return (
+    <s-section heading={`${heading} · ${hist.count}${hist.spentCents ? ` · ${money(hist.spentCents)} spent` : ''}`}>
+      <s-stack direction="block" gap="small">
+        {hist.repairs.slice(0, 10).map((r) => (
+          <s-button key={r.jobNumber} onClick={() => go({ name: 'ticket', job: r.jobNumber })}>
+            {`${r.jobNumber} · ${day(r.receivedOn)} · ${r.board || r.repair || '—'} · ${r.status}${r.price !== null && r.price !== undefined ? ` · ${money(r.price)}` : ''}`}
+          </s-button>
+        ))}
+        {hist.count > 10 && <s-text>{`and ${hist.count - 10} more: search their name or phone`}</s-text>}
+      </s-stack>
+    </s-section>
+  );
+}
+
 // ---------------------------------------------------------------- check in
 
 function CheckIn({ go }) {
@@ -216,6 +236,15 @@ function CheckIn({ go }) {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hist, setHist] = useState(null);
+
+  // Once a customer is picked, show what they've had done before.
+  useEffect(() => {
+    setHist(null);
+    if (!customer) return;
+    const qs = new URLSearchParams({ gid: customer.shopifyCustomerGid || '', ...(customer.phoneE164 ? { phone: customer.phoneE164 } : {}) });
+    api(`/api/history?${qs}`).then(setHist).catch(() => {});
+  }, [customer]);
 
   useEffect(() => {
     if (q.trim().length < 2) return setResults([]);
@@ -258,9 +287,12 @@ function CheckIn({ go }) {
           <s-section heading="Customer">
             <s-stack direction="block" gap="small">
               {customer ? (
-                <s-stack direction="inline" gap="base">
-                  <s-text>{customer.displayName}{customer.phoneE164 ? ` · ${customer.phoneE164}` : ''}</s-text>
-                  <s-button onClick={() => setCustomer(null)}>Change</s-button>
+                <s-stack direction="block" gap="small">
+                  <s-stack direction="inline" gap="base">
+                    <s-text>{customer.displayName}{customer.phoneE164 ? ` · ${customer.phoneE164}` : ''}</s-text>
+                    <s-button onClick={() => setCustomer(null)}>Change</s-button>
+                  </s-stack>
+                  <PastRepairs hist={hist} heading="Earlier repairs" go={go} />
                 </s-stack>
               ) : adding ? (
                 <s-stack direction="block" gap="small">
@@ -308,11 +340,11 @@ function CheckIn({ go }) {
 
 function Find({ go }) {
   const [q, setQ] = useState('');
-  const [found, setFound] = useState({ open: [], archive: [] });
+  const [found, setFound] = useState({ open: [], done: [], archive: [] });
   const [error, setError] = useState('');
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) return setFound({ open: [], archive: [] });
+    if (term.length < 2) return setFound({ open: [], done: [], archive: [] });
     const t = setTimeout(() => api(`/api/find?q=${encodeURIComponent(term)}`).then(setFound).catch((e) => setError(e.message)), 300);
     return () => clearTimeout(t);
   }, [q]);
@@ -333,10 +365,15 @@ function Find({ go }) {
               {found.open.map((t) => <JobButton key={t.jobNumber} t={t} go={go} />)}
             </s-stack>
           </s-section>
-          <s-section heading={`Old repairs · ${found.archive.length}`}>
+          <s-section heading={`Picked up · ${(found.done || []).length}`}>
+            <s-stack direction="block" gap="small">
+              {(found.done || []).map((t) => <JobButton key={t.jobNumber} t={t} go={go} />)}
+            </s-stack>
+          </s-section>
+          <s-section heading={`From the old spreadsheet · ${found.archive.length}`}>
             <s-stack direction="block" gap="small">
               {found.archive.map((a) => (
-                <s-text key={a.jobNumber}>{`${a.jobNumber} · ${a.customer || 'No name'} · ${a.board || ''} · ${a.status}${a.price ? ` · ${a.price} ${a.payment}` : ''}`}</s-text>
+                <s-button key={a.jobNumber} onClick={() => go({ name: 'ticket', job: a.jobNumber })}>{`${a.jobNumber} · ${a.customer || 'No name'} · ${a.board || ''} · ${a.status}${a.price ? ` · ${a.price} ${a.payment}` : ''}`}</s-button>
               ))}
             </s-stack>
           </s-section>
@@ -365,6 +402,10 @@ function Ticket({ job, go, me }) {
     setAgreed(ticket.money.agreedPrice === null ? '' : (ticket.money.agreedPrice / 100).toFixed(2));
   };
   useEffect(() => {
+    // Opening another job from "Other repairs" reuses this screen: start clean.
+    setT(null);
+    setArchived(null);
+    setError('');
     api(`/api/tickets/${encodeURIComponent(job)}`)
       .then((r) => (r.archived ? setArchived(r.archived) : show(r.ticket)))
       .catch((e) => setError(e.message));
@@ -532,6 +573,8 @@ function Ticket({ job, go, me }) {
               ))}
             </s-stack>
           )}
+
+          <PastRepairs hist={t.previousRepairs} heading="Other repairs for this customer" go={go} />
 
           {error && <s-text tone="critical">{error}</s-text>}
           <s-stack direction="inline" gap="base">

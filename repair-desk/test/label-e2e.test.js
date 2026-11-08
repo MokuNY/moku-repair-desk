@@ -56,7 +56,7 @@ test('check in a board -> QR label prints on the ZD411, once', async () => {
   const tom = createStaff(db, shop.id, null, { name: 'Tom Gleason', role: 'owner' });
   const { ticket } = createTicket(db, shop.id, tom, {
     requestId: crypto.randomBytes(12).toString('base64url'),
-    customer: { shopifyCustomerGid: 'gid://shopify/Customer/7', displayName: 'Russell Carpenter', firstName: 'Russell', lastName: 'Carpenter', phoneE164: '+15163983139' },
+    customer: { shopifyCustomerGid: 'gid://shopify/Customer/7', displayName: 'Casey Harbor', firstName: 'Casey', lastName: 'Harbor', phoneE164: '+15165550139' },
     boardDescription: "11'1 Chopwood",
     repairRequested: 'Minor dings bottom/middle',
   });
@@ -78,8 +78,8 @@ test('check in a board -> QR label prints on the ZD411, once', async () => {
   assert.equal((zpl.match(/\^XA/g) || []).length, 1, 'printed exactly once');
   assert.match(zpl, /\^PW447\^LL254/); // 2.2" x 1.25" at 203 dpi
   assert.match(zpl, /\^BQN,2,4\^FDMA,https:\/\/repair-desk-test\.fly\.dev\/t\/MOKU-0041\^FS/);
-  assert.match(zpl, /Russell C\./);
-  assert.match(zpl, /ph \.\.\.3139/);
+  assert.match(zpl, /Casey H\./);
+  assert.match(zpl, /ph \.\.\.0139/);
   assert.match(zpl, /11'1 Chopwood/);
 
   // Wrong secret is refused end to end.

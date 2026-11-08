@@ -1,7 +1,9 @@
-# Connects the Repair Desk TEST server to the shop's label printer server so
-# "Check in and print label" and "Reprint label" print on the ZD411.
+# Connects a Repair Desk server (test or production) to the shop's label
+# printer server so "Check in and print label" and "Reprint label" print on the ZD411.
 #
-# Run it by hand: Actions tab -> "Connect label printer (test)" -> Run workflow.
+# Run it by hand: Actions tab -> "Connect label printer" -> Run workflow.
+# The label server accepts ONE Repair Desk at a time: connecting production
+# disconnects the test server (its labels then say "printing is off").
 # It makes a new shared password, gives it to both Fly.io apps, and restarts
 # them. Running it again just replaces the password on both, so it's safe to
 # repeat. The password is never shown or stored anywhere but Fly.io secrets.
@@ -9,13 +11,18 @@
 # Note: the label server is the LIVE one. Test check-ins print real labels at
 # the counter. The label server restarts for a few seconds; the printer
 # reconnects on its own.
-name: Connect label printer (test)
+name: Connect label printer
 
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: "Which Repair Desk to connect"
+        type: choice
+        options: [test, production]
+        default: test
       confirm:
-        description: "I understand test labels will print on the shop's ZD411"
+        description: "I understand labels will print on the shop's ZD411"
         type: boolean
         required: true
         default: false
@@ -33,7 +40,7 @@ jobs:
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       LABEL_APP: moku-labels-b228fd
-      DESK_APP: moku-repair-desk-test
+      DESK_APP: ${{ inputs.target == 'production' && 'moku-repair-desk' || 'moku-repair-desk-test' }}
     steps:
       - name: Check
         run: |

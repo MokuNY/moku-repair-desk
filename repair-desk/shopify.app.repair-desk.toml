@@ -1,0 +1,20 @@
+# Repair Desk (PRODUCTION): Dev Dashboard app installed on moku-surf-shop-ny.myshopify.com.
+# Deployed only by the "Repair Desk production" workflow, which fills in the
+# client ID from the PROD_SHOPIFY_CLIENT_ID repository variable. Approving the
+# scopes below in the live store's admin is go-live step A3.
+client_id = "SET_BY_WORKFLOW"
+name = "Repair Desk"
+application_url = "https://moku-repair-desk.fly.dev"
+embedded = false
+
+[access_scopes]
+scopes = "read_customers,write_customers,read_orders,read_products"
+
+[auth]
+redirect_urls = [ "https://moku-repair-desk.fly.dev/auth/callback" ]
+
+[webhooks]
+api_version = "2026-10"
+
+[pos]
+embedded = false
