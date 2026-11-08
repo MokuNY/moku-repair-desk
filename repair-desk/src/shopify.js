@@ -110,7 +110,7 @@ export class ShopifyClient {
 
   /**
    * Search customers by phone, email or name. Phone input is matched on the
-   * normalized number so "516-532-7875" finds "+15165327875".
+   * normalized number so "516-555-0175" finds "+15165550175".
    */
   async searchCustomers(term, { limit = 10 } = {}) {
     const q = customerSearchQuery(term);

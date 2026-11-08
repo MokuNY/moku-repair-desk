@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildRepairLabel, validateRepairLabel } from '../src/repair-label.js';
 
 const label = validateRepairLabel({
-  label: { jobNumber: 'moku-0041', customerName: 'Brendan M.', board: "9'0 Fish Stix ^XZ~JR", received: 'Oct 17', phoneLast4: '2459', url: 'https://r.fly.dev/t/MOKU-0041', repair: 'x'.repeat(500) },
+  label: { jobNumber: 'moku-0041', customerName: 'Jordan R.', board: "9'0 Fish Stix ^XZ~JR", received: 'Oct 17', phoneLast4: '0159', url: 'https://r.fly.dev/t/MOKU-0041', repair: 'x'.repeat(500) },
 });
 const size = { widthIn: 2.2, heightIn: 1.25, marginIn: 0.06 };
 

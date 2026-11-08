@@ -1,5 +1,5 @@
-// US phone numbers -> E.164 (+15165327875). The spreadsheet holds every style:
-// "516-532-7875", "516.398.3139", "516743-2459", "1203-470-6261".
+// US phone numbers -> E.164 (+15165550175). The spreadsheet holds every style:
+// "516-555-0175", "516.555.0139", "516555-0159", "1203-555-0161".
 
 /** @returns {string|null} E.164 number, or null when it isn't a valid US number. */
 export function normalizeUsPhone(input) {
@@ -10,7 +10,7 @@ export function normalizeUsPhone(input) {
   return `+1${d}`;
 }
 
-/** +15165327875 -> "(516) 532-7875" */
+/** +15165550175 -> "(516) 555-0175" */
 export function formatUsPhone(e164) {
   const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(e164 || '');
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : String(e164 ?? '');

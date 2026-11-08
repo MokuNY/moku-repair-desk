@@ -18,7 +18,7 @@ function setup() {
   const john = createStaff(db, shop.id, tom, { name: 'John' });
   const { ticket } = createTicket(db, shop.id, john, {
     requestId: rid(),
-    customer: { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Brendan McCarthy', firstName: 'Brendan', lastName: 'McCarthy', phoneE164: '+15167432459' },
+    customer: { shopifyCustomerGid: 'gid://shopify/Customer/1', displayName: 'Jordan Reyes', firstName: 'Jordan', lastName: 'Reyes', phoneE164: '+15165550159' },
     boardDescription: "9'0 Fish Stix",
     repairRequested: 'New center longboard fin box only',
   });
@@ -44,8 +44,8 @@ test('label fields: first name + last initial, last four digits, ticket link', (
   const { db, shop, ticket } = setup();
   const f = labelFields(db, shop.id, ticket.id, BASE);
   assert.equal(f.jobNumber, 'MOKU-0041');
-  assert.equal(f.customerName, 'Brendan M.');
-  assert.equal(f.phoneLast4, '2459');
+  assert.equal(f.customerName, 'Jordan R.');
+  assert.equal(f.phoneLast4, '0159');
   assert.equal(f.board, "9'0 Fish Stix");
   assert.equal(f.url, 'https://repair-desk-test.fly.dev/t/MOKU-0041');
   assert.match(f.received, /^[A-Z][a-z]{2} \d{1,2}$/);

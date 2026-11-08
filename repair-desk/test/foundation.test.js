@@ -38,15 +38,15 @@ test('money: dollars to cents and back, no floats', () => {
 // ------------------------------------------------------------------ phone
 
 test('phone: every format found in the repair spreadsheet', () => {
-  assert.equal(normalizeUsPhone('516-532-7875'), '+15165327875');
-  assert.equal(normalizeUsPhone('516.398.3139'), '+15163983139');
-  assert.equal(normalizeUsPhone('516743-2459'), '+15167432459');
-  assert.equal(normalizeUsPhone('1203-470-6261'), '+12034706261');
-  assert.equal(normalizeUsPhone('808-445-1183'), '+18084451183');
+  assert.equal(normalizeUsPhone('516-555-0175'), '+15165550175');
+  assert.equal(normalizeUsPhone('516.555.0139'), '+15165550139');
+  assert.equal(normalizeUsPhone('516555-0159'), '+15165550159');
+  assert.equal(normalizeUsPhone('1203-555-0161'), '+12035550161');
+  assert.equal(normalizeUsPhone('808-555-0183'), '+18085550183');
   assert.equal(normalizeUsPhone('Contact: LM 8/28/26'), null);
   assert.equal(normalizeUsPhone(''), null);
-  assert.equal(formatUsPhone('+15165327875'), '(516) 532-7875');
-  assert.equal(lastFour('+15165327875'), '7875');
+  assert.equal(formatUsPhone('+15165550175'), '(516) 555-0175');
+  assert.equal(lastFour('+15165550175'), '0175');
 });
 
 // --------------------------------------------------------------- database

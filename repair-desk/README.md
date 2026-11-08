@@ -2,7 +2,7 @@
 
 Ding repair intake and management for MOKU Surf Shop: intake on the iPad, QR label on the ZD411, Keith's work and payouts, pickup paid through Shopify POS.
 
-**Status:** foundation, intake, import/archive/export and the iPad screens are built and tested. Nothing is deployed.
+**Status:** built and tested on the test store. Production go-live is planned for **Tue Nov 10, 2026**: see [GO-LIVE.md](GO-LIVE.md).
 
 ## Design rules
 
@@ -28,7 +28,12 @@ Ding repair intake and management for MOKU Surf Shop: intake on the iPad, QR lab
 | `src/import.js` | Import the Moku Ding Repair Repairs CSV: preview, then all-or-nothing apply |
 | `src/records.js` | Archive search, short (13-column) and full (42-column) CSV export |
 | `src/csv.js` | CSV read/write; exports can't carry spreadsheet formulas |
+| `src/history.js` | Search across every repair (open and picked up); a customer's repair history, app jobs plus old spreadsheet jobs joined by phone |
 | `scripts/seed-moku.js` | One-time MOKU setup; defaults to the dev store |
+| `scripts/import.js` | Cutover import from the command line: preview, then `--apply` (backup first) |
+| `litestream.yml`, `scripts/start.sh` | Continuous off-site backup in production; restore-on-empty-volume |
+| `fly.toml` / `fly.production.toml` | Test and production servers |
+| `GO-LIVE.md` | The cutover checklist |
 
 ## Replacing the Numbers tracker
 
@@ -39,7 +44,13 @@ The Repair Desk is the single source of truth. The **Moku Ding Repair** sheet (R
 - **Duplicates:** the same file is refused the second time. A job number already in the app is skipped if identical and reported if different, never overwritten. Any error or conflict means nothing is imported.
 - **Money:** unknown prices stay unknown, never $0. The import reports totals; for the Oct 16, 2026 export they are $17,780.00 charged, $15,270.00 received, $1,595.00 customer balances, $3,410.00 gross margin, and the export reproduces them.
 - **Job numbers** continue after the highest imported job (MOKU-0186) and never reuse an archived number.
-- **Persistence:** one SQLite file on a Fly volume (survives deploys and updates). Before any new migration runs, a full copy is written next to it (newest 5 kept). Continuous off-site backup is set up with the deployment.
+- **Persistence:** one SQLite file on a Fly volume (survives deploys and updates). Before any new migration or import, a full copy is written next to it (newest 5 kept). In production Litestream copies every change to Fly object storage, and an empty volume is restored from it automatically. The production server refuses to start without the backup (`REQUIRE_BACKUP=1`).
+- **Nightly copy:** `GET /export/repairs.csv` with the `X-Export-Key` header returns the 13-column spreadsheet of every job. An iPad Shortcut saves it to Files each night for Numbers (GO-LIVE.md step 9). Off unless `EXPORT_KEY` is set.
+
+## Finding past repairs
+
+- **Find a board** searches open boards, picked-up boards and the old spreadsheet archive by job number, name, phone or board.
+- **Customer history**: at check-in, once the customer is picked, and on every ticket, staff see the customer's other repairs: app jobs plus old spreadsheet jobs with the same phone number. Old jobs with no usable phone are still found by name; the import preview lists them.
 
 Real customer data is never committed to this repository; tests use invented rows shaped like the export.
 
@@ -76,4 +87,4 @@ node --no-warnings scripts/seed-moku.js data/dev.sqlite "Tom Gleason"
 | 3. Repair work | Inspection, Keith's charge, fee, custody events, call log | |
 | 4. Pickup | Shopify POS tile: scan the QR label, add the repair to the cart with the job number attached; sale matched to the job; completion on handoff | |
 | 5. Ledger and reports | Keith payable, payouts, dashboard, spreadsheet export; Repair tickets panel in Shopify admin | |
-| 6. Import and go-live | 40 spreadsheet jobs, then live | |
+| 6. Import and go-live | 185 spreadsheet jobs (8 live, 177 archive), then live | Tue Nov 10 |

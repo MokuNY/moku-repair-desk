@@ -44,7 +44,7 @@ const SHEET_STATUS = {
  * Build an export. Owner only (it contains customer phone numbers); logged.
  * @returns {{ csv: string, rows: number, totals: object }}
  */
-export function exportRecords(db, shopId, actor, { full = false, includeArchive = true } = {}) {
+export function exportRecords(db, shopId, actor, { full = false, includeArchive = true, via = 'owner' } = {}) {
   if (actor?.shop_id !== shopId) throw new PermissionError('Not allowed: data.export');
   requirePermission(actor, 'data.export');
   const live = liveRows(db, shopId);
@@ -70,7 +70,7 @@ export function exportRecords(db, shopId, actor, { full = false, includeArchive 
     });
   }
   rows.sort((a, b) => String(a[full ? 'Repair ID' : 'Job #']).localeCompare(String(b[full ? 'Repair ID' : 'Job #'])));
-  recordEvent(db, shopId, { staffId: actor.id, action: 'data.exported', entityType: 'shop', entityId: shopId, detail: { full, includeArchive, rows: rows.length } });
+  recordEvent(db, shopId, { staffId: actor.id, action: 'data.exported', entityType: 'shop', entityId: shopId, detail: { full, includeArchive, rows: rows.length, via } });
   return { csv: toCsv(full ? COLUMNS : SHORT_COLUMNS, rows), rows: rows.length, totals };
 }
 
